@@ -18,9 +18,14 @@ import { SettingsView } from './modules/settings/SettingsView';
 import { CreateProjectModal } from './modules/projects/CreateProjectModal';
 import { CallSheetModal } from './modules/call-sheet/CallSheetModal';
 import { FirebaseModal } from './components/firebase/FirebaseModal';
+import { AuthPage } from './modules/auth/AuthPage';
 
 const AppContent: React.FC = () => {
-  const { currentView } = useApp();
+  const { currentView, isAuthenticated } = useApp();
+
+  if (!isAuthenticated) {
+    return <AuthPage />;
+  }
 
   const renderView = () => {
     switch (currentView) {

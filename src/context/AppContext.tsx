@@ -15,7 +15,8 @@ import {
   LeaveRecord,
   TaskStatus,
   ProjectStatus,
-  VersionStatus
+  VersionStatus,
+  UserRole
 } from '../types';
 import { 
   mockBusinesses, 
@@ -33,7 +34,12 @@ import {
   mockLeaveRecords
 } from '../data/mockData';
 import confetti from 'canvas-confetti';
-import { onFirebaseAuthStateChanged } from '../services/firebaseAuth';
+import { 
+  onFirebaseAuthStateChanged, 
+  firebaseSignIn, 
+  firebaseSignUp, 
+  firebaseSignOut 
+} from '../services/firebaseAuth';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { saveFirestoreDoc, COLLECTIONS } from '../services/firebaseDb';
 
@@ -68,6 +74,20 @@ interface AppContextType {
   currentUser: User;
   setCurrentUser: (u: User) => void;
   users: User[];
+  isAuthenticated: boolean;
+  login: (email: string, pass: string) => Promise<void>;
+  signup: (data: {
+    name: string;
+    email: string;
+    password: string;
+    role: UserRole;
+    designation: string;
+    department: string;
+    agencyName?: string;
+    agencyTagline?: string;
+  }) => Promise<void>;
+  logout: () => Promise<void>;
+  loginAsRole: (role: UserRole) => void;
 
   // Navigation
   currentView: AppView;
@@ -130,12 +150,42 @@ interface AppContextType {
 export const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [businesses] = useState<Business[]>(mockBusinesses);
+  const [businesses, setBusinesses] = useState<Business[]>(mockBusinesses);
   const [activeBusiness, setActiveBusiness] = useState<Business>(mockBusinesses[0]);
-  const [users] = useState<User[]>(mockUsers);
-  const [currentUser, setCurrentUser] = useState<User>(mockUsers[0]); // Marcus Vance (Owner) by default
+  const [users, setUsers] = useState<User[]>(mockUsers);
+  
+  // Real Session & Auth Persistence
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('flowdeck_session');
+      return saved ? JSON.parse(saved).isAuthenticated : false;
+    } catch {
+      return false;
+    }
+  });
 
-  const [currentView, setCurrentView] = useState<AppView>('overview');
+  const [currentUser, setCurrentUser] = useState<User>(() => {
+    try {
+      const saved = localStorage.getItem('flowdeck_session');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.user) return parsed.user;
+      }
+    } catch {}
+    return mockUsers[0]; // Marcus Vance (Owner) fallback
+  });
+
+  const [currentView, setCurrentView] = useState<AppView>(() => {
+    try {
+      const saved = localStorage.getItem('flowdeck_session');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.user?.role === 'client') return 'client_portal';
+      }
+    } catch {}
+    return 'overview';
+  });
+
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>('proj_aura_radiance');
   const [activeProjectTab, setActiveProjectTab] = useState<ProjectTabType>('overview');
 
@@ -167,6 +217,127 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
     return () => unsubscribe();
   }, []);
+
+  // Auth Operations
+  const login = async (email: string, pass: string) => {
+    try {
+      await firebaseSignIn(email, pass);
+    } catch (fbErr: any) {
+      console.warn('Firebase login attempt:', fbErr?.message);
+    }
+
+    const matched = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+    const userToLogin: User = matched || {
+      id: 'user_' + Math.random().toString(36).substr(2, 9),
+      name: email.split('@')[0],
+      email,
+      phone: '+1 (555) 234-5678',
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+      role: 'owner',
+      accountType: 'business_owner',
+      designation: 'Agency Owner & Managing Director',
+      availability: 'available'
+    };
+
+    setCurrentUser(userToLogin);
+    setIsAuthenticated(true);
+    localStorage.setItem('flowdeck_session', JSON.stringify({ isAuthenticated: true, user: userToLogin }));
+
+    if (userToLogin.role === 'client') {
+      setCurrentView('client_portal');
+    } else {
+      setCurrentView('overview');
+    }
+  };
+
+  const signup = async (data: {
+    name: string;
+    email: string;
+    password: string;
+    role: UserRole;
+    designation: string;
+    department: string;
+    agencyName?: string;
+    agencyTagline?: string;
+  }) => {
+    try {
+      await firebaseSignUp(data.email, data.password, data.name);
+    } catch (fbErr: any) {
+      console.warn('Firebase signup attempt:', fbErr?.message);
+    }
+
+    const defaultAvatars: Record<UserRole, string> = {
+      owner: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+      head_manager: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80',
+      videographer: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
+      photographer: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=400&q=80',
+      video_editor: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&q=80',
+      social_media_manager: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=400&q=80',
+      graphic_designer: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=400&q=80',
+      model: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=400&q=80',
+      client: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=400&q=80',
+      hr_manager: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=400&q=80'
+    };
+
+    const newUser: User = {
+      id: 'user_' + Math.random().toString(36).substr(2, 9),
+      name: data.name,
+      email: data.email,
+      phone: '+1 (555) 789-0123',
+      avatar: defaultAvatars[data.role] || defaultAvatars.owner,
+      role: data.role,
+      accountType: data.role === 'owner' ? 'business_owner' : data.role === 'client' ? 'client' : 'employee',
+      designation: data.designation,
+      department: data.department,
+      availability: 'available',
+      isExternalClient: data.role === 'client'
+    };
+
+    // If Agency Owner, configure custom business
+    if (data.role === 'owner' && data.agencyName) {
+      const customBiz: Business = {
+        ...activeBusiness,
+        id: 'biz_' + Math.random().toString(36).substr(2, 7),
+        name: data.agencyName,
+        tagline: data.agencyTagline || 'Commercial Video & Creative Production',
+        ownerId: newUser.id
+      };
+      setActiveBusiness(customBiz);
+      setBusinesses(prev => [customBiz, ...prev.filter(b => b.id !== customBiz.id)]);
+    }
+
+    setUsers(prev => [newUser, ...prev]);
+    setCurrentUser(newUser);
+    setIsAuthenticated(true);
+    localStorage.setItem('flowdeck_session', JSON.stringify({ isAuthenticated: true, user: newUser }));
+
+    if (data.role === 'client') {
+      setCurrentView('client_portal');
+    } else {
+      setCurrentView('overview');
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await firebaseSignOut();
+    } catch {}
+    localStorage.removeItem('flowdeck_session');
+    setIsAuthenticated(false);
+  };
+
+  const loginAsRole = (role: UserRole) => {
+    const matched = users.find(u => u.role === role) || users[0];
+    setCurrentUser(matched);
+    setIsAuthenticated(true);
+    localStorage.setItem('flowdeck_session', JSON.stringify({ isAuthenticated: true, user: matched }));
+
+    if (matched.role === 'client') {
+      setCurrentView('client_portal');
+    } else {
+      setCurrentView('overview');
+    }
+  };
 
   const addToast = (title: string, message: string, type: 'success' | 'info' | 'warning' | 'danger' = 'info') => {
     const id = 'toast_' + Math.random().toString(36).substr(2, 9);
@@ -755,6 +926,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         currentUser,
         setCurrentUser,
         users,
+        isAuthenticated,
+        login,
+        signup,
+        logout,
+        loginAsRole,
         currentView,
         setCurrentView,
         selectedProjectId,

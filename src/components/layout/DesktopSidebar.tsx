@@ -13,11 +13,13 @@ import {
   Settings, 
   ExternalLink,
   Lock,
-  Layers
+  Layers,
+  LogOut
 } from 'lucide-react';
+import { RoleBadge } from '../shared/RoleBadge';
 
 export const DesktopSidebar: React.FC = () => {
-  const { currentView, setCurrentView, currentUser, tasks, rooms } = useApp();
+  const { currentView, setCurrentView, currentUser, tasks, rooms, logout } = useApp();
 
   const isClient = currentUser.role === 'client';
   const isHRAuthorized = currentUser.role === 'owner' || currentUser.role === 'hr_manager';
@@ -112,16 +114,30 @@ export const DesktopSidebar: React.FC = () => {
         })}
       </div>
 
-      {/* Footer Blueprint Callout */}
-      <div className="p-4 border-t border-slate-200/80 bg-slate-50/70">
-        <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs">
-          <div className="flex items-center gap-1.5 text-blue-600 font-bold text-[11px] uppercase tracking-wider">
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse" />
-            Core Principle
+      {/* User Account & Sign Out */}
+      <div className="p-3 border-t border-slate-200/80 bg-slate-50/70 space-y-2">
+        <div className="flex items-center justify-between p-2 rounded-xl bg-white border border-slate-200/80 shadow-2xs">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <img
+              src={currentUser.avatar}
+              alt={currentUser.name}
+              className="w-8 h-8 rounded-full object-cover border border-slate-200 shrink-0"
+            />
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-slate-800 truncate">{currentUser.name}</p>
+              <p className="text-[10px] text-blue-600 font-medium truncate capitalize">
+                {currentUser.role === 'owner' ? 'Agency Owner' : currentUser.role.replace('_', ' ')}
+              </p>
+            </div>
           </div>
-          <p className="text-xs text-slate-600 mt-1 leading-snug">
-            "One project. One workspace. One communication history. Complete visibility."
-          </p>
+          
+          <button
+            onClick={() => logout()}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+            title="Sign Out of FlowDeck"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
         </div>
       </div>
 

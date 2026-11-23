@@ -10,7 +10,8 @@ import {
   ExternalLink,
   ShieldCheck,
   UserCheck,
-  Flame
+  Flame,
+  LogOut
 } from 'lucide-react';
 import { RoleBadge } from '../shared/RoleBadge';
 
@@ -29,7 +30,8 @@ export const TopBar: React.FC = () => {
     currentView,
     setCurrentView,
     setIsAuthModalOpen,
-    firebaseUser
+    firebaseUser,
+    logout
   } = useApp();
 
   const [isBizMenuOpen, setIsBizMenuOpen] = useState(false);
@@ -130,12 +132,12 @@ export const TopBar: React.FC = () => {
             <span className={`w-1.5 h-1.5 rounded-full ${firebaseUser ? 'bg-emerald-500' : 'bg-orange-400'}`} />
           </button>
 
-          {/* Persona Switcher (CRITICAL FOR TESTING BLUEPRINT PERSONAS) */}
+          {/* Logged-In User Profile & Account Menu */}
           <div className="relative">
             <button
               onClick={() => setIsPersonaMenuOpen(!isPersonaMenuOpen)}
               className="flex items-center gap-1.5 sm:gap-2 p-1 sm:px-2.5 sm:py-1 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 transition-all active:scale-95"
-              title="Switch Persona & Test Roles"
+              title="Your Account & Role Profile"
             >
               <div className="relative">
                 <img
@@ -143,7 +145,7 @@ export const TopBar: React.FC = () => {
                   alt={currentUser.name}
                   className="w-7 h-7 sm:w-6 sm:h-6 rounded-full object-cover border border-white shadow-2xs shrink-0"
                 />
-                <span className="sm:hidden absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-blue-600 ring-2 ring-white" />
+                <span className="sm:hidden absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white" />
               </div>
               <div className="text-left hidden md:block">
                 <div className="flex items-center gap-1">
@@ -152,46 +154,60 @@ export const TopBar: React.FC = () => {
                   </span>
                   <ChevronDown className="w-3 h-3 text-slate-400" />
                 </div>
-                <span className="text-[10px] text-blue-600 font-medium">
-                  {currentUser.designation.split(' ')[0]}
+                <span className="text-[10px] text-blue-600 font-medium truncate block max-w-[120px]">
+                  {currentUser.designation.split(' ')[0]} • {currentUser.role === 'owner' ? 'Owner' : currentUser.role.replace('_', ' ')}
                 </span>
               </div>
             </button>
 
-            {/* Persona Switcher Modal */}
+            {/* User Account Popover */}
             {isPersonaMenuOpen && (
-              <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-slate-200 py-2 z-40 animate-in fade-in zoom-in-95">
-                <div className="px-3.5 py-2 border-b border-slate-100 bg-slate-50/50 rounded-t-xl">
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
-                    <UserCheck className="w-4 h-4 text-blue-600" />
-                    Role & Persona Simulator
-                  </div>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
-                    Test role-based access control and client portals directly.
-                  </p>
-                </div>
-                <div className="max-h-72 overflow-y-auto py-1">
-                  {users.map((u) => (
-                    <button
-                      key={u.id}
-                      onClick={() => {
-                        setCurrentUser(u);
-                        setIsPersonaMenuOpen(false);
-                      }}
-                      className={`w-full flex items-center justify-between px-3 py-2 text-left hover:bg-slate-50 transition-colors ${
-                        u.id === currentUser.id ? 'bg-blue-50/70' : ''
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <img src={u.avatar} alt={u.name} className="w-7 h-7 rounded-full object-cover shrink-0" />
-                        <div className="min-w-0">
-                          <p className="text-xs font-semibold text-slate-800 truncate">{u.name}</p>
-                          <p className="text-[11px] text-slate-500 truncate">{u.designation}</p>
-                        </div>
+              <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-xl border border-slate-200 py-2 z-40 animate-in fade-in zoom-in-95">
+                <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/70 rounded-t-2xl">
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={currentUser.avatar}
+                      alt={currentUser.name}
+                      className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-xs shrink-0"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-1">
+                        <p className="text-xs font-extrabold text-slate-900 truncate">
+                          {currentUser.name}
+                        </p>
+                        <RoleBadge role={currentUser.role} size="sm" />
                       </div>
-                      <RoleBadge role={u.role} size="sm" />
-                    </button>
-                  ))}
+                      <p className="text-[11px] text-slate-500 truncate">{currentUser.email}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-3 text-xs space-y-2 border-b border-slate-100">
+                  <div className="flex items-center justify-between text-slate-600">
+                    <span className="text-[11px] text-slate-400 font-medium">Designation:</span>
+                    <span className="font-semibold text-slate-800 text-right truncate max-w-[170px]">{currentUser.designation}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-slate-600">
+                    <span className="text-[11px] text-slate-400 font-medium">Department:</span>
+                    <span className="font-semibold text-slate-800">{currentUser.department || 'Operations'}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-slate-600">
+                    <span className="text-[11px] text-slate-400 font-medium">Agency Workspace:</span>
+                    <span className="font-semibold text-blue-600">{activeBusiness.name}</span>
+                  </div>
+                </div>
+
+                <div className="p-2">
+                  <button
+                    onClick={() => {
+                      setIsPersonaMenuOpen(false);
+                      logout();
+                    }}
+                    className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs transition-colors"
+                  >
+                    <LogOut className="w-4 h-4 text-rose-600" />
+                    <span>Sign Out of FlowDeck</span>
+                  </button>
                 </div>
               </div>
             )}
