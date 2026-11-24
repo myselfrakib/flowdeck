@@ -16,7 +16,9 @@ import {
   Copy,
   Check,
   ExternalLink,
-  Sparkles
+  Sparkles,
+  MessageSquare,
+  Smartphone
 } from 'lucide-react';
 import { UserRole } from '../../types';
 
@@ -36,12 +38,16 @@ export const TeamDirectoryView: React.FC = () => {
   const [inviteSuccessModal, setInviteSuccessModal] = useState<{
     name: string;
     email: string;
+    phone: string;
     role: string;
     downloadUrl: string;
     joinUrl: string;
     mailtoUrl: string;
+    whatsappUrl: string;
+    smsUrl: string;
     emailSubject: string;
     emailBody: string;
+    messageText: string;
   } | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
 
@@ -106,24 +112,32 @@ export const TeamDirectoryView: React.FC = () => {
       bio: `${roleDesignations[inviteRole] || 'Specialist'} at ${activeBusiness.name}.`
     });
 
-    // Prepare App Download & Workspace Join Email
+    // Prepare App Download & Workspace Join Email and Phone Messages
+    const phoneDigits = cleanPhone.replace(/\D/g, '');
     const inviteToken = 'inv_' + Math.random().toString(36).substr(2, 9);
     const downloadUrl = 'https://flowdeck.app/download';
     const joinUrl = `https://flowdeck.app/join?biz=${activeBusiness.id}&token=${inviteToken}&email=${encodeURIComponent(inviteEmail.trim())}`;
     const emailSubject = `Invitation to join ${activeBusiness.name} on FlowDeck`;
     const emailBody = `Hi ${computedName},\n\nYou have been invited to join ${activeBusiness.name} on FlowDeck as ${roleDesignations[inviteRole] || 'Creative Specialist'}.\n\n1. Download the FlowDeck App (iOS, Android, or Desktop):\n${downloadUrl}\n\n2. Accept your invite and enter the agency workspace:\n${joinUrl}\n\nInvited by: ${currentUser.name} (${activeBusiness.name})`;
     const mailtoUrl = `mailto:${encodeURIComponent(inviteEmail.trim())}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
+    const messageText = `Hi ${computedName}, you've been invited by ${activeBusiness.name} to join our studio operations workspace on FlowDeck as ${roleDesignations[inviteRole] || 'Creative Specialist'}.\n\n1. Download App: ${downloadUrl}\n2. Join Workspace: ${joinUrl}`;
+    const whatsappUrl = phoneDigits ? `https://wa.me/${phoneDigits}?text=${encodeURIComponent(messageText)}` : '';
+    const smsUrl = phoneDigits ? `sms:${phoneDigits}?body=${encodeURIComponent(messageText)}` : '';
 
     // Set success modal state
     setInviteSuccessModal({
       name: computedName,
       email: inviteEmail.trim(),
+      phone: cleanPhone,
       role: roleDesignations[inviteRole] || 'Creative Personnel',
       downloadUrl,
       joinUrl,
       mailtoUrl,
+      whatsappUrl,
+      smsUrl,
       emailSubject,
-      emailBody
+      emailBody,
+      messageText
     });
 
     setIsInviteOpen(false);
@@ -437,7 +451,11 @@ export const TeamDirectoryView: React.FC = () => {
                 <div>
                   <p className="text-xs font-bold text-slate-900">{inviteSuccessModal.name}</p>
                   <p className="text-[11px] text-slate-500">{inviteSuccessModal.role}</p>
-                  <p className="text-[10px] text-blue-600 font-mono mt-0.5">{inviteSuccessModal.email}</p>
+                  <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-500 font-mono">
+                    <span className="text-blue-600">{inviteSuccessModal.email}</span>
+                    <span>•</span>
+                    <span>{inviteSuccessModal.phone}</span>
+                  </div>
                 </div>
               </div>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
@@ -445,45 +463,70 @@ export const TeamDirectoryView: React.FC = () => {
               </span>
             </div>
 
-            {/* Quick Email Actions */}
+            {/* Quick Email & Message Delivery Actions */}
             <div className="space-y-2">
               <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                Deliver Download & Invite Email:
+                Deliver Download & Invite to Personnel:
               </span>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <a
                   href={inviteSuccessModal.mailtoUrl}
-                  className="py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition-colors"
+                  className="py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-colors"
                 >
-                  <Mail className="w-4 h-4" />
-                  <span>Open in Mail App</span>
+                  <Mail className="w-4 h-4 shrink-0" />
+                  <span>Send Email</span>
                 </a>
+
+                {inviteSuccessModal.whatsappUrl ? (
+                  <a
+                    href={inviteSuccessModal.whatsappUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-colors"
+                  >
+                    <MessageSquare className="w-4 h-4 shrink-0" />
+                    <span>WhatsApp</span>
+                  </a>
+                ) : null}
+
                 <button
                   type="button"
                   onClick={handleCopyInviteLink}
-                  className="py-2.5 px-3 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 font-semibold text-xs flex items-center justify-center gap-2 transition-colors"
+                  className="py-2.5 px-3 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors"
                 >
                   {copiedLink ? (
                     <>
-                      <Check className="w-4 h-4 text-emerald-600" />
-                      <span className="text-emerald-700 font-bold">Copied to Clipboard!</span>
+                      <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span className="text-emerald-700 font-bold">Copied!</span>
                     </>
                   ) : (
                     <>
-                      <Copy className="w-4 h-4 text-slate-500" />
-                      <span>Copy Download & Invite Link</span>
+                      <Copy className="w-4 h-4 text-slate-500 shrink-0" />
+                      <span>Copy Link</span>
                     </>
                   )}
                 </button>
               </div>
             </div>
 
+            {/* Download Link Card */}
+            <div className="p-3 bg-blue-50/60 border border-blue-200/80 rounded-xl flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2">
+                <Download className="w-4 h-4 text-blue-600 shrink-0" />
+                <div>
+                  <p className="font-bold text-slate-800">FlowDeck App Download</p>
+                  <p className="text-[10px] text-blue-600 font-mono">https://flowdeck.app/download</p>
+                </div>
+              </div>
+              <span className="text-[10px] font-bold text-slate-400">iOS • Android • Web</span>
+            </div>
+
             {/* Email Body Preview */}
             <div className="space-y-1.5">
               <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                Email Invitation Preview:
+                Email / Message Preview:
               </span>
-              <div className="p-3 bg-slate-100/80 rounded-xl border border-slate-200 text-xs font-mono text-slate-700 whitespace-pre-line leading-relaxed max-h-40 overflow-y-auto">
+              <div className="p-3 bg-slate-100/80 rounded-xl border border-slate-200 text-xs font-mono text-slate-700 whitespace-pre-line leading-relaxed max-h-36 overflow-y-auto">
                 <span className="font-bold text-slate-900 block mb-1">
                   Subject: {inviteSuccessModal.emailSubject}
                 </span>
