@@ -46,28 +46,23 @@ export const ProjectListView: React.FC = () => {
     <div className="space-y-6">
       
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200/80">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-              Projects & Workspaces
-            </h1>
-            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
-              {filteredProjects.length} Total
-            </span>
-          </div>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Full lifecycle creative delivery: Brief → Shoot → Edit → Review → Client Sign-off
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+            Projects
+          </h1>
+          <p className="text-xs text-slate-500 mt-0.5">
+            {filteredProjects.length} active campaigns across client accounts
           </p>
         </div>
 
         {currentUser.role !== 'client' && currentUser.role !== 'model' && (
           <button
             onClick={() => setIsCreateProjectOpen(true)}
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold text-sm rounded-xl shadow-xs transition-all shrink-0"
+            className="flex items-center justify-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs rounded-lg shadow-xs transition-colors shrink-0"
           >
             <Plus className="w-4 h-4" />
-            <span>Create New Project</span>
+            <span>New Project</span>
           </button>
         )}
       </div>

@@ -41,20 +41,23 @@ export const OverviewView: React.FC = () => {
   return (
     <div className="space-y-6">
       
-      {/* Welcome Banner */}
-      <div className="bg-gradient-to-r from-[#102A43] via-[#1C3D5A] to-[#2563EB] rounded-2xl p-5 sm:p-7 text-white shadow-lg relative overflow-hidden">
-        <div className="relative z-10 max-w-2xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md text-sky-200 text-xs font-semibold mb-3 border border-white/15">
-            <Sparkles className="w-3.5 h-3.5 text-sky-300" />
-            <span>Welcome back, {currentUser.name} ({currentUser.designation})</span>
-          </div>
-          <h2 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight">
-            Creative Production Dashboard
-          </h2>
-          <p className="text-slate-200 text-xs sm:text-sm mt-1.5 leading-relaxed">
-            {pendingApprovals.length} versions pending review, {upcomingShoots.length} upcoming shoots scheduled this week, and {blockedTasks.length} active blocker requiring action.
+      {/* Executive Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-200/80">
+        <div>
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight">Overview</h1>
+          <p className="text-xs text-slate-500 mt-0.5">
+            {activeProjects.length} active projects • {upcomingShoots.length} shoots scheduled • {pendingApprovals.length} cuts in review
           </p>
         </div>
+
+        {currentUser.role !== 'client' && (
+          <button
+            onClick={() => setIsCreateProjectOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-medium text-xs rounded-lg shadow-xs transition-colors self-start sm:self-auto"
+          >
+            <span>+ New Project</span>
+          </button>
+        )}
       </div>
 
       {/* Urgent Blocker Alert if any */}

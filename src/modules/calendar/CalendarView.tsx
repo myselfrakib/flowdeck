@@ -227,7 +227,7 @@ export const CalendarView: React.FC = () => {
     <div className="space-y-6">
       
       {/* Top Controls: Month & Year, Nav Buttons, Google Calendar View Switcher */}
-      <div className="bg-white rounded-3xl border border-slate-200/80 p-4 sm:p-5 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="bg-white rounded-xl border border-slate-200/90 p-3.5 sm:p-4 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         
         {/* Left: Navigation and Month display */}
         <div className="flex items-center gap-3">
@@ -297,7 +297,7 @@ export const CalendarView: React.FC = () => {
         
         {/* Left Column: Interactive Month Calendar Grid OR Agenda List */}
         {calendarView === 'month' ? (
-          <div className="lg:col-span-8 bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
+          <div className="lg:col-span-8 bg-white rounded-xl border border-slate-200/90 shadow-xs overflow-hidden">
             
             {/* Days of Week Header */}
             <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50/70 text-center py-2.5 text-[11px] font-bold uppercase tracking-wider text-slate-500">
@@ -426,7 +426,7 @@ export const CalendarView: React.FC = () => {
           </div>
         ) : (
           /* Mobile-First Agenda / Date Selector View */
-          <div className="lg:col-span-8 bg-white rounded-3xl border border-slate-200/80 shadow-xs p-4 sm:p-6 space-y-5">
+          <div className="lg:col-span-8 bg-white rounded-xl border border-slate-200/90 shadow-xs p-4 sm:p-5 space-y-5">
             <div>
               <div className="flex items-center justify-between pb-2 mb-3 border-b border-slate-100">
                 <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">

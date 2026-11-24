@@ -121,15 +121,15 @@ export const TopBar: React.FC = () => {
         {/* Right side controls */}
         <div className="flex items-center gap-1.5 sm:gap-3">
 
-          {/* Firebase Cloud Services Hub Trigger */}
+          {/* Firebase Status */}
           <button
             onClick={() => setIsAuthModalOpen(true)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-orange-200/90 bg-orange-50/70 hover:bg-orange-100 text-orange-800 text-xs font-bold transition-all shadow-2xs active:scale-95"
-            title="Firebase Project: rakib-18024 (Auth, Firestore, Storage, RTDB)"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200/90 hover:bg-slate-50 text-slate-700 text-xs font-medium transition-colors"
+            title="Firebase Project: rakib-18024"
           >
-            <Flame className="w-4 h-4 fill-orange-500 text-orange-500 shrink-0" />
+            <Flame className="w-3.5 h-3.5 text-amber-500 shrink-0" />
             <span className="hidden sm:inline">Firebase</span>
-            <span className={`w-1.5 h-1.5 rounded-full ${firebaseUser ? 'bg-emerald-500' : 'bg-orange-400'}`} />
+            <span className={`w-1.5 h-1.5 rounded-full ${firebaseUser ? 'bg-emerald-500' : 'bg-amber-400'}`} />
           </button>
 
           {/* Logged-In User Profile & Account Menu */}

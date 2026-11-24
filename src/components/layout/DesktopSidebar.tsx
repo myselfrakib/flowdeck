@@ -84,26 +84,26 @@ export const DesktopSidebar: React.FC = () => {
             <button
               key={item.id}
               onClick={() => setCurrentView(item.id)}
-              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-xs sm:text-sm transition-all duration-150 group ${
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg font-medium text-xs sm:text-sm transition-colors group ${
                 isActive
-                  ? 'bg-blue-600 text-white shadow-xs font-semibold'
-                  : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
+                  ? 'bg-slate-100 text-slate-900 font-semibold'
+                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
               }`}
             >
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2.5">
                 <Icon
-                  className={`w-4 h-4 transition-transform group-hover:scale-105 ${
-                    isActive ? 'text-white' : 'text-slate-400 group-hover:text-blue-600'
+                  className={`w-4 h-4 ${
+                    isActive ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600'
                   }`}
                 />
                 <span>{item.label}</span>
               </div>
               {item.badge !== undefined && (
                 <span
-                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                  className={`text-[10px] font-bold px-1.5 py-0.2 rounded-md ${
                     isActive
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-slate-200 text-slate-700'
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'bg-slate-100 text-slate-500'
                   }`}
                 >
                   {item.badge}

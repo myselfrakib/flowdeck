@@ -33,25 +33,23 @@ export const StatCard: React.FC<StatCardProps> = ({
   return (
     <div
       onClick={onClick}
-      className={`bg-white rounded-xl border border-slate-200/80 p-4 sm:p-5 shadow-xs transition-all duration-150 ${
-        onClick ? 'cursor-pointer hover:border-blue-400 hover:shadow-md' : ''
+      className={`bg-white rounded-xl border border-slate-200/90 p-4 shadow-xs transition-colors ${
+        onClick ? 'cursor-pointer hover:border-slate-300' : ''
       }`}
     >
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs font-medium text-slate-500">
           {title}
         </span>
-        <div className={`p-2.5 rounded-lg border ${colorMap[colorScheme]}`}>
-          <Icon className="w-5 h-5" />
-        </div>
+        <Icon className="w-4 h-4 text-slate-400" />
       </div>
       <div className="flex items-baseline gap-2">
-        <span className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
+        <span className="text-2xl font-bold text-slate-900 tracking-tight">
           {value}
         </span>
         {trend && (
           <span
-            className={`text-xs font-medium px-1.5 py-0.5 rounded-md ${
+            className={`text-[11px] font-medium px-1.5 py-0.5 rounded ${
               trendType === 'positive'
                 ? 'bg-emerald-50 text-emerald-700'
                 : trendType === 'negative'
@@ -63,7 +61,7 @@ export const StatCard: React.FC<StatCardProps> = ({
           </span>
         )}
       </div>
-      {subtitle && <p className="text-xs text-slate-500 mt-1">{subtitle}</p>}
+      {subtitle && <p className="text-[11px] text-slate-400 mt-1">{subtitle}</p>}
     </div>
   );
 };

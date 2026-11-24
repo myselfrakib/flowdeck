@@ -90,18 +90,13 @@ export const ClientDirectoryView: React.FC = () => {
     <div className="space-y-6">
       
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200/80">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-              Client Accounts & Portals
-            </h1>
-            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
-              {filteredClients.length} Brands
-            </span>
-          </div>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Client directories, contact management, active deliverables, and isolated approval links
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+            Clients
+          </h1>
+          <p className="text-xs text-slate-500 mt-0.5">
+            {filteredClients.length} active client accounts & portals
           </p>
         </div>
 
@@ -109,10 +104,10 @@ export const ClientDirectoryView: React.FC = () => {
           {currentUser.role !== 'client' && (
             <button
               onClick={() => setIsAddClientOpen(true)}
-              className="flex items-center justify-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold text-xs sm:text-sm rounded-xl shadow-xs transition-colors shrink-0"
+              className="flex items-center justify-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs rounded-lg shadow-xs transition-colors shrink-0"
             >
               <Plus className="w-4 h-4" />
-              <span>Add New Client</span>
+              <span>Add Client</span>
             </button>
           )}
 

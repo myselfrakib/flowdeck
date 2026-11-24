@@ -70,7 +70,7 @@ export const ProjectDetailView: React.FC = () => {
     <div className="space-y-5">
       
       {/* Back Button & Project Header */}
-      <div className="bg-white rounded-3xl border border-slate-200/80 p-5 sm:p-6 shadow-xs space-y-4">
+      <div className="bg-white rounded-xl border border-slate-200/90 p-4 sm:p-5 shadow-xs space-y-4">
         
         {/* Navigation Breadcrumb */}
         <div className="flex items-center justify-between">
@@ -135,7 +135,7 @@ export const ProjectDetailView: React.FC = () => {
         </div>
 
         {/* Tabs Bar */}
-        <div className="flex items-center gap-1 overflow-x-auto pt-3 border-t border-slate-100 -mb-2">
+        <div className="flex items-center gap-1 overflow-x-auto pt-3 border-t border-slate-100 -mb-1">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeProjectTab === tab.id;
@@ -144,9 +144,9 @@ export const ProjectDetailView: React.FC = () => {
               <button
                 key={tab.id}
                 onClick={() => setActiveProjectTab(tab.id)}
-                className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors shrink-0 ${
                   isActive
-                    ? 'bg-blue-600 text-white shadow-xs'
+                    ? 'bg-slate-900 text-white shadow-2xs font-semibold'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
               >
