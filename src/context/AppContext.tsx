@@ -427,49 +427,119 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Real-time Firestore Sync Listeners
   useEffect(() => {
+    const unsubUsers = subscribeFirestoreCollection<User>(COLLECTIONS.USERS, (remoteUsers) => {
+      if (remoteUsers && remoteUsers.length > 0) {
+        setUsers((prev) => {
+          const map = new Map<string, User>();
+          prev.forEach((u) => map.set(u.id, u));
+          remoteUsers.forEach((u) => map.set(u.id, u));
+          const merged = Array.from(map.values());
+          try {
+            localStorage.setItem('flowdeck_db_users', JSON.stringify(merged));
+          } catch {}
+          return merged;
+        });
+      } else {
+        users.forEach((u) => saveFirestoreDoc(COLLECTIONS.USERS, u));
+      }
+    });
+
+    const unsubBusinesses = subscribeFirestoreCollection<Business>(COLLECTIONS.BUSINESSES, (remoteBizs) => {
+      if (remoteBizs && remoteBizs.length > 0) {
+        setBusinesses(remoteBizs);
+        try {
+          localStorage.setItem('flowdeck_db_businesses', JSON.stringify(remoteBizs));
+        } catch {}
+      } else {
+        businesses.forEach((b) => saveFirestoreDoc(COLLECTIONS.BUSINESSES, b));
+      }
+    });
+
     const unsubProjects = subscribeFirestoreCollection<Project>(COLLECTIONS.PROJECTS, (remoteProjects) => {
       if (remoteProjects && remoteProjects.length > 0) {
         setProjects(remoteProjects);
+        try {
+          localStorage.setItem('flowdeck_db_projects', JSON.stringify(remoteProjects));
+        } catch {}
+      } else {
+        projects.forEach((p) => saveFirestoreDoc(COLLECTIONS.PROJECTS, p));
       }
     });
 
     const unsubClients = subscribeFirestoreCollection<ClientProfile>(COLLECTIONS.CLIENTS, (remoteClients) => {
       if (remoteClients && remoteClients.length > 0) {
         setClients(remoteClients);
+        try {
+          localStorage.setItem('flowdeck_db_clients', JSON.stringify(remoteClients));
+        } catch {}
+      } else {
+        clients.forEach((c) => saveFirestoreDoc(COLLECTIONS.CLIENTS, c));
       }
     });
 
     const unsubTasks = subscribeFirestoreCollection<Task>(COLLECTIONS.TASKS, (remoteTasks) => {
       if (remoteTasks && remoteTasks.length > 0) {
         setTasks(remoteTasks);
+        try {
+          localStorage.setItem('flowdeck_db_tasks', JSON.stringify(remoteTasks));
+        } catch {}
+      } else {
+        tasks.forEach((t) => saveFirestoreDoc(COLLECTIONS.TASKS, t));
       }
     });
 
     const unsubShoots = subscribeFirestoreCollection<ShootEvent>(COLLECTIONS.SHOOTS, (remoteShoots) => {
       if (remoteShoots && remoteShoots.length > 0) {
         setShootEvents(remoteShoots);
+        try {
+          localStorage.setItem('flowdeck_db_shoots', JSON.stringify(remoteShoots));
+        } catch {}
+      } else {
+        shootEvents.forEach((s) => saveFirestoreDoc(COLLECTIONS.SHOOTS, s));
       }
     });
 
     const unsubRooms = subscribeFirestoreCollection<Room>(COLLECTIONS.ROOMS, (remoteRooms) => {
       if (remoteRooms && remoteRooms.length > 0) {
         setRooms(remoteRooms);
+        try {
+          localStorage.setItem('flowdeck_db_rooms', JSON.stringify(remoteRooms));
+        } catch {}
+      } else {
+        rooms.forEach((r) => saveFirestoreDoc(COLLECTIONS.ROOMS, r));
       }
     });
 
     const unsubVersions = subscribeFirestoreCollection<EditVersion>(COLLECTIONS.VERSIONS, (remoteVersions) => {
       if (remoteVersions && remoteVersions.length > 0) {
         setEditVersions(remoteVersions);
+        try {
+          localStorage.setItem('flowdeck_db_versions', JSON.stringify(remoteVersions));
+        } catch {}
+      } else {
+        editVersions.forEach((v) => saveFirestoreDoc(COLLECTIONS.VERSIONS, v));
+      }
+    });
+
+    const unsubNotifications = subscribeFirestoreCollection<NotificationItem>(COLLECTIONS.NOTIFICATIONS, (remoteNotifs) => {
+      if (remoteNotifs && remoteNotifs.length > 0) {
+        setNotifications(remoteNotifs);
+        try {
+          localStorage.setItem('flowdeck_db_notifications', JSON.stringify(remoteNotifs));
+        } catch {}
       }
     });
 
     return () => {
+      unsubUsers();
+      unsubBusinesses();
       unsubProjects();
       unsubClients();
       unsubTasks();
       unsubShoots();
       unsubRooms();
       unsubVersions();
+      unsubNotifications();
     };
   }, []);
 
@@ -680,6 +750,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setCurrentUser(newUser);
     setIsAuthenticated(true);
     localStorage.setItem('flowdeck_session', JSON.stringify({ isAuthenticated: true, user: newUser }));
+    saveFirestoreDoc(COLLECTIONS.USERS, newUser);
 
     if (data.role === 'client') {
       setCurrentView('client_portal');
@@ -891,12 +962,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setTasks((prev) =>
       prev.map((t) => {
         if (t.id === taskId) {
-          return {
+          const updated = {
             ...t,
             checklists: t.checklists.map((c) =>
               c.id === itemId ? { ...c, completed: !c.completed } : c
             )
           };
+          saveFirestoreDoc(COLLECTIONS.TASKS, updated);
+          return updated;
         }
         return t;
       })
@@ -910,7 +983,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       roomId,
       senderId: currentUser.id,
       text: text.trim(),
-      createdAt: 'Just now',
+      createdAt: new Date().toISOString(),
       reactions: []
     };
 
@@ -920,12 +993,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
 
     setRooms((prev) =>
-      prev.map((r) =>
-        r.id === roomId
-          ? { ...r, lastMessageText: text.trim(), lastMessageTime: 'Just now' }
-          : r
-      )
+      prev.map((r) => {
+        if (r.id === roomId) {
+          const updated = { ...r, lastMessageText: text.trim(), lastMessageTime: 'Just now' };
+          saveFirestoreDoc(COLLECTIONS.ROOMS, updated);
+          return updated;
+        }
+        return r;
+      })
     );
+
+    saveFirestoreDoc(COLLECTIONS.MESSAGES, newMsg);
   };
 
   const convertMessageToTask = (
@@ -991,7 +1069,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             }
             return p;
           });
-          return { ...s, participants: updatedParticipants };
+          const updated = { ...s, participants: updatedParticipants };
+          saveFirestoreDoc(COLLECTIONS.SHOOTS, updated);
+          return updated;
         }
         return s;
       })
@@ -1002,7 +1082,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const confirmShoot = (shootId: string) => {
     setShootEvents((prev) =>
-      prev.map((s) => (s.id === shootId ? { ...s, status: 'confirmed' } : s))
+      prev.map((s) => {
+        if (s.id === shootId) {
+          const updated = { ...s, status: 'confirmed' as const };
+          saveFirestoreDoc(COLLECTIONS.SHOOTS, updated);
+          return updated;
+        }
+        return s;
+      })
     );
     addToast('Shoot Confirmed', 'The shoot has been locked. Mobile call sheets sent to all crew members.', 'success');
   };
@@ -1025,10 +1112,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setEditVersions((prev) =>
       prev.map((v) => {
         if (v.id === versionId) {
-          return {
+          const updated = {
             ...v,
             comments: [...v.comments, newComment]
           };
+          saveFirestoreDoc(COLLECTIONS.VERSIONS, updated);
+          return updated;
         }
         return v;
       })
@@ -1039,16 +1128,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const approveVersionInternally = (versionId: string) => {
     setEditVersions((prev) =>
-      prev.map((v) =>
-        v.id === versionId
-          ? {
-              ...v,
-              internalApprovedBy: currentUser.id,
-              internalApprovedAt: new Date().toISOString(),
-              status: 'client_review'
-            }
-          : v
-      )
+      prev.map((v) => {
+        if (v.id === versionId) {
+          const updated = {
+            ...v,
+            internalApprovedBy: currentUser.id,
+            internalApprovedAt: new Date().toISOString(),
+            status: 'client_review' as const
+          };
+          saveFirestoreDoc(COLLECTIONS.VERSIONS, updated);
+          return updated;
+        }
+        return v;
+      })
     );
 
     const version = editVersions.find((v) => v.id === versionId);
@@ -1072,17 +1164,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const approveVersionClient = (versionId: string, signatureName: string) => {
     setEditVersions((prev) =>
-      prev.map((v) =>
-        v.id === versionId
-          ? {
-              ...v,
-              status: 'approved',
-              clientApprovedBy: signatureName || currentUser.name,
-              clientApprovedAt: new Date().toISOString(),
-              finalDeliveryUrl: 'https://drive.google.com/drive/folders/aura-final-delivery-prores4444'
-            }
-          : v
-      )
+      prev.map((v) => {
+        if (v.id === versionId) {
+          const updated = {
+            ...v,
+            status: 'approved' as const,
+            clientApprovedBy: signatureName || currentUser.name,
+            clientApprovedAt: new Date().toISOString(),
+            finalDeliveryUrl: 'https://drive.google.com/drive/folders/aura-final-delivery-prores4444'
+          };
+          saveFirestoreDoc(COLLECTIONS.VERSIONS, updated);
+          return updated;
+        }
+        return v;
+      })
     );
 
     const version = editVersions.find((v) => v.id === versionId);
@@ -1119,15 +1214,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const requestVersionChanges = (versionId: string, notes: string) => {
     setEditVersions((prev) =>
-      prev.map((v) =>
-        v.id === versionId
-          ? {
-              ...v,
-              status: 'revision_requested',
-              changeNotes: notes
-            }
-          : v
-      )
+      prev.map((v) => {
+        if (v.id === versionId) {
+          const updated = {
+            ...v,
+            status: 'revision_requested' as const,
+            changeNotes: notes
+          };
+          saveFirestoreDoc(COLLECTIONS.VERSIONS, updated);
+          return updated;
+        }
+        return v;
+      })
     );
 
     const version = editVersions.find((v) => v.id === versionId);
@@ -1174,6 +1272,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     setAssets((prev) => [newAsset, ...prev]);
+    saveFirestoreDoc(COLLECTIONS.ASSETS, newAsset);
 
     setActivityLogs((prev) => [
       {
@@ -1193,7 +1292,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const markNotificationAsRead = (id: string) => {
     setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+      prev.map((n) => {
+        if (n.id === id) {
+          const updated = { ...n, read: true };
+          saveFirestoreDoc(COLLECTIONS.NOTIFICATIONS, updated);
+          return updated;
+        }
+        return n;
+      })
     );
   };
 
@@ -1204,6 +1310,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       status: 'pending'
     };
     setLeaveRecords((prev) => [newRecord, ...prev]);
+    saveFirestoreDoc('flowdeck_leave_records', newRecord);
     addToast('Leave Request Submitted', 'HR and management have been notified of your dates.', 'info');
   };
 
@@ -1211,12 +1318,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setShootEvents((prev) =>
       prev.map((s) => {
         if (s.id === shootId) {
-          return {
+          const updated = {
             ...s,
             startAt: newStartAt,
             endAt: newEndAt,
-            status: 'proposed'
+            status: 'proposed' as const
           };
+          saveFirestoreDoc(COLLECTIONS.SHOOTS, updated);
+          return updated;
         }
         return s;
       })
@@ -1379,6 +1488,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       read: false
     };
     setNotifications((prev) => [newNotif, ...prev.filter((n) => n.id !== notifId)]);
+    saveFirestoreDoc(COLLECTIONS.NOTIFICATIONS, newNotif);
 
     const inviteData: PendingAgencyInvite = {
       bizId: agency.id,
@@ -1453,6 +1563,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setBusinesses(prev => [targetBiz, ...prev.filter(b => b.id !== targetBiz.id)]);
     }
     setActiveBusiness(targetBiz);
+    saveFirestoreDoc(COLLECTIONS.BUSINESSES, targetBiz);
 
     // 2. Update currentUser designation & business association
     const updatedUser: User = {
@@ -1467,6 +1578,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     setCurrentUser(updatedUser);
+    saveFirestoreDoc(COLLECTIONS.USERS, updatedUser);
     setUsers(prev => {
       const idx = prev.findIndex(u => u.id === updatedUser.id);
       if (idx !== -1) {
@@ -1542,18 +1654,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
 
     if (currentUser) {
-      setNotifications(prev => [
-        {
-          id: 'notif_declined_' + Math.random().toString(36).substr(2, 9),
-          recipientId: currentUser.id,
-          title: `Declined: ${agencyName} Invitation`,
-          message: `You declined the invitation to join ${agencyName}.`,
-          type: 'mention',
-          createdAt: new Date().toISOString(),
-          read: true
-        },
-        ...prev
-      ]);
+      const declineNotif: NotificationItem = {
+        id: 'notif_declined_' + Math.random().toString(36).substr(2, 9),
+        recipientId: currentUser.id,
+        title: `Declined: ${agencyName} Invitation`,
+        message: `You declined the invitation to join ${agencyName}.`,
+        type: 'mention',
+        createdAt: new Date().toISOString(),
+        read: true
+      };
+      setNotifications(prev => [declineNotif, ...prev]);
+      saveFirestoreDoc(COLLECTIONS.NOTIFICATIONS, declineNotif);
     }
 
     try {

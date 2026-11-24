@@ -27,8 +27,28 @@ export const COLLECTIONS = {
   VERSIONS: 'flowdeck_versions',
   ASSETS: 'flowdeck_assets',
   LOGS: 'flowdeck_activity_logs',
-  USERS: 'flowdeck_users'
+  USERS: 'flowdeck_users',
+  BUSINESSES: 'flowdeck_businesses',
+  NOTIFICATIONS: 'flowdeck_notifications'
 } as const;
+
+/**
+ * Deep sanitization function to remove undefined values that cause Firestore setDoc() to fail
+ */
+export function cleanForFirestore<T>(obj: T): any {
+  if (obj === null || obj === undefined) return null;
+  if (Array.isArray(obj)) return obj.map(cleanForFirestore);
+  if (typeof obj === 'object') {
+    const res: Record<string, any> = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (value !== undefined) {
+        res[key] = cleanForFirestore(value);
+      }
+    }
+    return res;
+  }
+  return obj;
+}
 
 /**
  * Real-time collection subscriber
@@ -56,17 +76,18 @@ export const subscribeFirestoreCollection = <T>(
 };
 
 /**
- * Write or update a document in Firestore with silent offline fallback
+ * Write or update a document in Firestore with sanitization and error logging
  */
 export const saveFirestoreDoc = async <T extends { id: string }>(
   collectionName: string,
   data: T
 ): Promise<void> => {
   try {
+    const cleaned = cleanForFirestore(data);
     const docRef = doc(db, collectionName, data.id);
-    await setDoc(docRef, data, { merge: true });
+    await setDoc(docRef, cleaned, { merge: true });
   } catch (err: any) {
-    console.warn(`Firestore save error on ${collectionName}/${data.id}:`, err?.message || err);
+    console.error(`Firestore save error on ${collectionName}/${data.id}:`, err?.message || err);
   }
 };
 
@@ -104,42 +125,42 @@ export const seedInitialDataToFirebase = async (initialData: {
     // Projects
     initialData.projects.forEach((item) => {
       const ref = doc(db, COLLECTIONS.PROJECTS, item.id);
-      batch.set(ref, item, { merge: true });
+      batch.set(ref, cleanForFirestore(item), { merge: true });
       count++;
     });
 
     // Clients
     initialData.clients.forEach((item) => {
       const ref = doc(db, COLLECTIONS.CLIENTS, item.id);
-      batch.set(ref, item, { merge: true });
+      batch.set(ref, cleanForFirestore(item), { merge: true });
       count++;
     });
 
     // Tasks
     initialData.tasks.forEach((item) => {
       const ref = doc(db, COLLECTIONS.TASKS, item.id);
-      batch.set(ref, item, { merge: true });
+      batch.set(ref, cleanForFirestore(item), { merge: true });
       count++;
     });
 
     // Shoots
     initialData.shootEvents.forEach((item) => {
       const ref = doc(db, COLLECTIONS.SHOOTS, item.id);
-      batch.set(ref, item, { merge: true });
+      batch.set(ref, cleanForFirestore(item), { merge: true });
       count++;
     });
 
     // Versions
     initialData.editVersions.forEach((item) => {
       const ref = doc(db, COLLECTIONS.VERSIONS, item.id);
-      batch.set(ref, item, { merge: true });
+      batch.set(ref, cleanForFirestore(item), { merge: true });
       count++;
     });
 
     // Messages
     initialData.messages.forEach((item) => {
       const ref = doc(db, COLLECTIONS.MESSAGES, item.id);
-      batch.set(ref, item, { merge: true });
+      batch.set(ref, cleanForFirestore(item), { merge: true });
       count++;
     });
 
