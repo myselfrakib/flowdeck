@@ -37,13 +37,13 @@ export const ProfilePhotoModal: React.FC<Props> = ({
 
   useEffect(() => {
     if (isOpen) {
-      setSelectedImage(null);
+      setSelectedImage(currentAvatar || null);
       setZoom(1);
       setRotation(0);
       setPan({ x: 0, y: 0 });
       setUrlInput('');
     }
-  }, [isOpen]);
+  }, [isOpen, currentAvatar]);
 
   if (!isOpen) return null;
 
@@ -57,10 +57,12 @@ export const ProfilePhotoModal: React.FC<Props> = ({
       const reader = new FileReader();
       reader.onload = (event) => {
         const result = event.target?.result as string;
-        setSelectedImage(result);
-        setZoom(1);
-        setRotation(0);
-        setPan({ x: 0, y: 0 });
+        if (result) {
+          setSelectedImage(result);
+          setZoom(1);
+          setRotation(0);
+          setPan({ x: 0, y: 0 });
+        }
       };
       reader.readAsDataURL(file);
     }
@@ -108,63 +110,85 @@ export const ProfilePhotoModal: React.FC<Props> = ({
   };
 
   const handleExportCropped = () => {
-    if (!selectedImage) {
-      if (currentAvatar) {
-        onSave(currentAvatar);
-      }
+    const targetImage = selectedImage || currentAvatar;
+    if (!targetImage) {
       onClose();
       return;
     }
 
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      const size = 320;
-      canvas.width = size;
-      canvas.height = size;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        onSave(selectedImage);
+    // Safety timeout in case image load hangs
+    let hasResolved = false;
+    const safetyTimeout = setTimeout(() => {
+      if (!hasResolved) {
+        hasResolved = true;
+        onSave(targetImage);
         onClose();
-        return;
       }
+    }, 1200);
 
-      ctx.clearRect(0, 0, size, size);
-
-      // Clip as circle
-      ctx.beginPath();
-      ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
-      ctx.closePath();
-      ctx.clip();
-
-      ctx.save();
-      // Center of canvas
-      ctx.translate(size / 2 + pan.x, size / 2 + pan.y);
-      ctx.rotate((rotation * Math.PI) / 180);
-      ctx.scale(zoom, zoom);
-
-      // Draw image centered
-      const aspect = img.width / img.height;
-      let drawW = size;
-      let drawH = size;
-      if (aspect > 1) {
-        drawW = size * aspect;
-      } else {
-        drawH = size / aspect;
-      }
-      ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
-      ctx.restore();
-
-      const finalUrl = canvas.toDataURL('image/jpeg', 0.92);
-      onSave(finalUrl);
+    const finish = (resultUrl: string) => {
+      if (hasResolved) return;
+      hasResolved = true;
+      clearTimeout(safetyTimeout);
+      onSave(resultUrl);
       onClose();
     };
+
+    const img = new Image();
+    // Only set crossOrigin if it is a remote HTTP/HTTPS link, NOT a data: or blob: URI
+    if (targetImage.startsWith('http://') || targetImage.startsWith('https://')) {
+      img.crossOrigin = 'anonymous';
+    }
+
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        const size = 320;
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          finish(targetImage);
+          return;
+        }
+
+        ctx.clearRect(0, 0, size, size);
+
+        // Clip circular view
+        ctx.beginPath();
+        ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.clip();
+
+        ctx.save();
+        ctx.translate(size / 2 + pan.x, size / 2 + pan.y);
+        ctx.rotate((rotation * Math.PI) / 180);
+        ctx.scale(zoom, zoom);
+
+        const aspect = img.width / (img.height || 1);
+        let drawW = size;
+        let drawH = size;
+        if (aspect > 1) {
+          drawW = size * aspect;
+        } else {
+          drawH = size / aspect;
+        }
+        ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
+        ctx.restore();
+
+        const finalUrl = canvas.toDataURL('image/jpeg', 0.92);
+        finish(finalUrl);
+      } catch (err) {
+        // Tainted canvas or toDataURL security restriction fallback
+        finish(targetImage);
+      }
+    };
+
     img.onerror = () => {
-      onSave(selectedImage);
-      onClose();
+      finish(targetImage);
     };
-    img.src = selectedImage;
+
+    img.src = targetImage;
   };
 
   const presets = [
@@ -227,7 +251,7 @@ export const ProfilePhotoModal: React.FC<Props> = ({
             <div className="absolute inset-0 pointer-events-none rounded-full border border-white/30" />
             
             {/* Drag hint overlay badge */}
-            {selectedImage && (
+            {(selectedImage || currentAvatar) && (
               <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-slate-900/70 text-white text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1 backdrop-blur-xs pointer-events-none font-medium">
                 <Move className="w-3 h-3" />
                 <span>Drag to pan</span>
@@ -236,7 +260,7 @@ export const ProfilePhotoModal: React.FC<Props> = ({
           </div>
 
           {/* Zoom & Rotation Controls Bar */}
-          {selectedImage && (
+          {(selectedImage || currentAvatar) && (
             <div className="w-full max-w-xs mt-3.5 p-2 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2">
               <div className="flex items-center gap-2 px-1">
                 <ZoomOut className="w-4 h-4 text-slate-400 shrink-0" />

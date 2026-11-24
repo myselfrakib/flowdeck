@@ -26,7 +26,8 @@ export const COLLECTIONS = {
   ROOMS: 'flowdeck_rooms',
   VERSIONS: 'flowdeck_versions',
   ASSETS: 'flowdeck_assets',
-  LOGS: 'flowdeck_activity_logs'
+  LOGS: 'flowdeck_activity_logs',
+  USERS: 'flowdeck_users'
 } as const;
 
 /**

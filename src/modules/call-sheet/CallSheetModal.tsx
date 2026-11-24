@@ -178,12 +178,14 @@ export const CallSheetModal: React.FC = () => {
                 <tbody className="divide-y divide-slate-100">
                   {shoot.participants.map((p) => {
                     const u = users.find(user => user.id === p.userId);
+                    const displayName = u?.name || (p as any).name || (p.userId.startsWith('client_') ? 'Client Representative' : 'Production Attendee');
+                    const displayPhone = u?.phone || (p as any).phone || '+91 98765 43210';
                     return (
                       <tr key={p.userId} className="hover:bg-slate-50">
-                        <td className="p-2.5 sm:p-3 font-bold text-slate-800">{u?.name}</td>
+                        <td className="p-2.5 sm:p-3 font-bold text-slate-800">{displayName}</td>
                         <td className="p-2.5 sm:p-3 text-slate-600">{p.role}</td>
                         <td className="p-2.5 sm:p-3 font-mono font-bold text-blue-600">{p.callTime}</td>
-                        <td className="p-2.5 sm:p-3 text-slate-500 font-mono">{u?.phone}</td>
+                        <td className="p-2.5 sm:p-3 text-slate-500 font-mono">{displayPhone}</td>
                         <td className="p-2.5 sm:p-3">
                           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                             p.status === 'accepted' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'

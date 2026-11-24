@@ -21,7 +21,12 @@ import {
   Camera,
   CheckSquare,
   Coffee,
-  RotateCcw
+  RotateCcw,
+  Video,
+  UserPlus,
+  Trash2,
+  Phone,
+  Briefcase
 } from 'lucide-react';
 import { ShootEvent, Task, LeaveRecord } from '../../types';
 
@@ -33,6 +38,7 @@ export const CalendarView: React.FC = () => {
     projects, 
     users, 
     currentUser, 
+    clients,
     setActiveCallSheetShootId, 
     openProject, 
     createShootEvent,
@@ -53,13 +59,35 @@ export const CalendarView: React.FC = () => {
   const [rescheduleReason, setRescheduleReason] = useState('Talent conflict at original time slot');
 
   // Add Event Form State
-  const [eventType, setEventType] = useState<'shoot' | 'task'>('shoot');
+  const [eventType, setEventType] = useState<'shoot' | 'meeting' | 'task'>('shoot');
   const [eventTitle, setEventTitle] = useState('');
   const [eventProject, setEventProject] = useState(projects[0]?.id || '');
   const [startTime, setStartTime] = useState('08:00');
   const [endTime, setEndTime] = useState('17:00');
   const [location, setLocation] = useState('Chelsea Industrial Stage A, NYC');
-  const [selectedCrew, setSelectedCrew] = useState<string[]>([currentUser.id]);
+
+  // People Involved state
+  const [selectedParticipants, setSelectedParticipants] = useState<Array<{
+    id: string;
+    name: string;
+    role: string;
+    avatar?: string;
+    phone?: string;
+    isCustom?: boolean;
+  }>>([
+    {
+      id: currentUser.id,
+      name: currentUser.name,
+      role: currentUser.designation,
+      avatar: currentUser.avatar,
+      phone: currentUser.phone
+    }
+  ]);
+
+  const [peopleTab, setPeopleTab] = useState<'team' | 'clients' | 'custom'>('team');
+  const [customPersonName, setCustomPersonName] = useState('');
+  const [customPersonRole, setCustomPersonRole] = useState('');
+  const [customPersonPhone, setCustomPersonPhone] = useState('');
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth(); // 0-indexed
@@ -163,38 +191,41 @@ export const CalendarView: React.FC = () => {
     e.preventDefault();
     if (!eventTitle.trim()) return;
 
-    if (eventType === 'shoot') {
+    const projectId = eventProject || (projects[0]?.id ?? 'proj_main');
+
+    if (eventType === 'shoot' || eventType === 'meeting') {
       const startAt = `${selectedDateStr}T${startTime}:00Z`;
       const endAt = `${selectedDateStr}T${endTime}:00Z`;
+      const isMeeting = eventType === 'meeting';
+      const formattedTitle = isMeeting
+        ? (eventTitle.trim().startsWith('[Meeting]') ? eventTitle.trim() : `[Meeting] ${eventTitle.trim()}`)
+        : eventTitle.trim();
 
       createShootEvent({
-        projectId: eventProject,
-        title: eventTitle.trim(),
-        location,
-        locationAddress: `${location}, New York, NY`,
-        mapUrl: `https://maps.google.com/?q=${encodeURIComponent(location)}`,
+        projectId,
+        title: formattedTitle,
+        location: location.trim() || (isMeeting ? 'Virtual Conference Room / Google Meet' : 'Production Studio'),
+        locationAddress: `${location.trim() || (isMeeting ? 'Remote Sync' : 'Production Studio')}, New York, NY`,
+        mapUrl: `https://maps.google.com/?q=${encodeURIComponent(location || 'Studio')}`,
         startAt,
         endAt,
         status: 'proposed',
-        participants: selectedCrew.map((uid) => {
-          const u = users.find(user => user.id === uid);
-          return {
-            userId: uid,
-            role: u?.designation || 'Crew Member',
-            status: uid === currentUser.id ? 'accepted' : 'pending',
-            callTime: startTime
-          };
-        }),
-        wardrobeNotes: 'Production casual / wardrobe options according to client brief.',
-        propsEquipment: ['Sony FX6 / FX3 Cinema Rig', 'Aputure LED Light Kit', 'Wireless Lavalier Audio'],
-        directorNotes: 'Planned commercial production shoot day.'
+        participants: selectedParticipants.map((p) => ({
+          userId: p.id,
+          role: p.role,
+          status: p.id === currentUser.id ? 'accepted' : 'pending',
+          callTime: startTime
+        })),
+        wardrobeNotes: isMeeting ? 'Professional video appearance.' : 'Production casual / wardrobe options according to client brief.',
+        propsEquipment: isMeeting ? ['Meeting Agenda', 'Presentation Deck', 'Microphone'] : ['Sony FX6 / FX3 Cinema Rig', 'Aputure LED Light Kit', 'Wireless Lavalier Audio'],
+        directorNotes: isMeeting ? 'Client & team creative coordination meeting.' : 'Planned commercial production shoot day.'
       });
     } else {
       createTask({
-        projectId: eventProject,
+        projectId,
         title: eventTitle.trim(),
-        description: `Scheduled deadline task for ${selectedDateStr}`,
-        assigneeIds: selectedCrew,
+        description: `Scheduled deadline task for ${selectedDateStr}. Involves: ${selectedParticipants.map(p => `${p.name} (${p.role})`).join(', ') || 'Lead Assignee'}`,
+        assigneeIds: selectedParticipants.map(p => p.id),
         status: 'todo',
         priority: 'high',
         dueAt: `${selectedDateStr}T18:00:00Z`,
@@ -206,6 +237,15 @@ export const CalendarView: React.FC = () => {
 
     setIsAddEventOpen(false);
     setEventTitle('');
+    setSelectedParticipants([
+      {
+        id: currentUser.id,
+        name: currentUser.name,
+        role: currentUser.designation,
+        avatar: currentUser.avatar,
+        phone: currentUser.phone
+      }
+    ]);
   };
 
   // Handle Reschedule Submit
@@ -352,17 +392,28 @@ export const CalendarView: React.FC = () => {
 
                     {/* Event Badges inside the date box */}
                     <div className="space-y-1 mt-1 overflow-hidden">
-                      {/* Shoots */}
-                      {dayData?.shoots.map((s) => (
-                        <div
-                          key={s.id}
-                          className="truncate text-[9px] sm:text-[10px] font-bold px-1 sm:px-1.5 py-0.5 rounded-md bg-blue-100 text-blue-900 border border-blue-200 shadow-2xs flex items-center gap-1"
-                          title={s.title}
-                        >
-                          <Camera className="w-2.5 h-2.5 shrink-0 text-blue-600 hidden sm:inline" />
-                          <span className="truncate">{s.title.split('—')[0]}</span>
-                        </div>
-                      ))}
+                      {/* Shoots & Meetings */}
+                      {dayData?.shoots.map((s) => {
+                        const isMeeting = s.title.startsWith('[Meeting]');
+                        return (
+                          <div
+                            key={s.id}
+                            className={`truncate text-[9px] sm:text-[10px] font-bold px-1 sm:px-1.5 py-0.5 rounded-md border shadow-2xs flex items-center gap-1 ${
+                              isMeeting
+                                ? 'bg-indigo-100 text-indigo-900 border-indigo-200'
+                                : 'bg-blue-100 text-blue-900 border-blue-200'
+                            }`}
+                            title={s.title}
+                          >
+                            {isMeeting ? (
+                              <Video className="w-2.5 h-2.5 shrink-0 text-indigo-600 hidden sm:inline" />
+                            ) : (
+                              <Camera className="w-2.5 h-2.5 shrink-0 text-blue-600 hidden sm:inline" />
+                            )}
+                            <span className="truncate">{s.title.replace(/^\[Meeting\]\s*/, '').split('—')[0]}</span>
+                          </div>
+                        );
+                      })}
 
                       {/* Tasks */}
                       {dayData?.tasks.map((t) => (
@@ -407,6 +458,10 @@ export const CalendarView: React.FC = () => {
                 <span className="flex items-center gap-1.5">
                   <span className="w-3 h-3 rounded-md bg-blue-100 border border-blue-300" />
                   <span className="font-semibold text-slate-700">Commercial Shoots</span>
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-3 h-3 rounded-md bg-indigo-100 border border-indigo-300" />
+                  <span className="font-semibold text-slate-700">Meetings & Syncs</span>
                 </span>
                 <span className="flex items-center gap-1.5">
                   <span className="w-3 h-3 rounded-md bg-purple-100 border border-purple-300" />
@@ -558,10 +613,50 @@ export const CalendarView: React.FC = () => {
                         </span>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <MapPin className="w-3.5 h-3.5 text-rose-500" />
+                        {shoot.title.startsWith('[Meeting]') ? (
+                          <Video className="w-3.5 h-3.5 text-indigo-500" />
+                        ) : (
+                          <MapPin className="w-3.5 h-3.5 text-rose-500" />
+                        )}
                         <span className="truncate">{shoot.location}</span>
                       </div>
                     </div>
+
+                    {/* People Involved in Shoot / Meeting */}
+                    {shoot.participants && shoot.participants.length > 0 && (
+                      <div className="pt-2 border-t border-blue-100/60">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1.5 flex items-center gap-1">
+                          <Users className="w-3 h-3 text-blue-500" />
+                          <span>People Involved ({shoot.participants.length})</span>
+                        </span>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {shoot.participants.map((p) => {
+                            const u = users.find(user => user.id === p.userId);
+                            const c = clients.find(cl => `client_${cl.id}` === p.userId);
+                            const name = u?.name || c?.contactPerson || (p as any).name || (p.userId.startsWith('client_') ? 'Client' : 'Crew Member');
+                            const avatar = u?.avatar || c?.logoUrl;
+                            return (
+                              <div
+                                key={p.userId}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-slate-200 text-[11px] font-medium text-slate-700 shadow-2xs"
+                              >
+                                {avatar ? (
+                                  <img src={avatar} alt={name} className="w-3.5 h-3.5 rounded-full object-cover" />
+                                ) : (
+                                  <span className="w-3.5 h-3.5 rounded-full bg-blue-100 text-blue-700 text-[9px] flex items-center justify-center font-bold">
+                                    {name.charAt(0)}
+                                  </span>
+                                )}
+                                <span className="truncate max-w-[95px]">{name}</span>
+                                <span className="text-[9px] text-slate-400 font-normal truncate max-w-[70px]">
+                                  ({p.role.split(' ')[0]})
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
 
                     {/* Actions: View Call Sheet & Reschedule Request */}
                     <div className="flex items-center gap-2 pt-2 border-t border-blue-100">
@@ -605,6 +700,25 @@ export const CalendarView: React.FC = () => {
                       <PriorityBadge priority={task.priority} />
                     </div>
                     <h5 className="text-xs font-bold text-slate-900">{task.title}</h5>
+
+                    {/* Task Involved Assignees */}
+                    {task.assigneeIds && task.assigneeIds.length > 0 && (
+                      <div className="flex items-center gap-1.5 flex-wrap pt-1 text-[11px] text-slate-500">
+                        <Users className="w-3 h-3 text-purple-500 shrink-0" />
+                        <span className="font-semibold text-slate-600">Involved:</span>
+                        {task.assigneeIds.map((uid) => {
+                          const u = users.find(user => user.id === uid);
+                          const c = clients.find(cl => `client_${cl.id}` === uid);
+                          const name = u?.name || c?.contactPerson || (uid.startsWith('client_') ? 'Client' : 'Assignee');
+                          return (
+                            <span key={uid} className="px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-700 font-medium">
+                              {name}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+
                     <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-xs">
                       <StatusBadge status={task.status} size="sm" />
                       {task.status !== 'completed' && (
@@ -682,37 +796,55 @@ export const CalendarView: React.FC = () => {
 
             <form onSubmit={handleAddEventSubmit} className="space-y-3.5">
               
-              {/* Type Switcher */}
-              <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl text-xs font-bold">
+              {/* Type Switcher: Shoot, Meeting, Task */}
+              <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 rounded-xl text-xs font-bold">
                 <button
                   type="button"
                   onClick={() => setEventType('shoot')}
-                  className={`py-1.5 rounded-lg transition-all ${
-                    eventType === 'shoot' ? 'bg-white shadow-xs text-blue-600' : 'text-slate-600'
+                  className={`py-1.5 px-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                    eventType === 'shoot' ? 'bg-white shadow-xs text-blue-600' : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  Commercial Shoot
+                  <Camera className="w-3.5 h-3.5" />
+                  <span>Shoot</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEventType('meeting')}
+                  className={`py-1.5 px-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                    eventType === 'meeting' ? 'bg-white shadow-xs text-indigo-600' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Video className="w-3.5 h-3.5" />
+                  <span>Meeting</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setEventType('task')}
-                  className={`py-1.5 rounded-lg transition-all ${
-                    eventType === 'task' ? 'bg-white shadow-xs text-blue-600' : 'text-slate-600'
+                  className={`py-1.5 px-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                    eventType === 'task' ? 'bg-white shadow-xs text-purple-600' : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  Project Task / Milestone
+                  <CheckSquare className="w-3.5 h-3.5" />
+                  <span>Task</span>
                 </button>
               </div>
 
               {/* Title */}
               <div>
                 <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
-                  {eventType === 'shoot' ? 'Shoot Production Title *' : 'Task / Milestone Title *'}
+                  {eventType === 'shoot' ? 'Shoot Production Title *' : eventType === 'meeting' ? 'Meeting Agenda / Title *' : 'Task / Milestone Title *'}
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder={eventType === 'shoot' ? 'e.g. Golden Hour Rooftop B-Roll Unit' : 'e.g. Rough Cut Assembly Review'}
+                  placeholder={
+                    eventType === 'shoot' 
+                      ? 'e.g. Golden Hour Rooftop B-Roll Unit' 
+                      : eventType === 'meeting'
+                      ? 'e.g. Concept Review & Pre-Pro Alignment'
+                      : 'e.g. Rough Cut Assembly Review'
+                  }
                   value={eventTitle}
                   onChange={(e) => setEventTitle(e.target.value)}
                   className="w-full text-xs sm:text-sm px-3 py-2 rounded-xl border border-slate-200 focus:outline-hidden focus:border-blue-600"
@@ -736,7 +868,9 @@ export const CalendarView: React.FC = () => {
               {/* Time inputs */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Start / Call Time</label>
+                  <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
+                    {eventType === 'task' ? 'Due / Start Time' : 'Start / Call Time'}
+                  </label>
                   <input
                     type="time"
                     value={startTime}
@@ -745,7 +879,9 @@ export const CalendarView: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">End / Wrap Time</label>
+                  <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
+                    {eventType === 'task' ? 'Completion Time' : 'End / Wrap Time'}
+                  </label>
                   <input
                     type="time"
                     value={endTime}
@@ -755,49 +891,257 @@ export const CalendarView: React.FC = () => {
                 </div>
               </div>
 
-              {/* Shoot Location if shoot */}
-              {eventType === 'shoot' && (
+              {/* Location or Meeting Link */}
+              {eventType !== 'task' && (
                 <div>
-                  <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Shoot Location Address</label>
+                  <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
+                    {eventType === 'shoot' ? 'Shoot Location Address' : 'Meeting Location or Virtual Room Link'}
+                  </label>
                   <input
                     type="text"
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
-                    placeholder="e.g. Stage C, Chelsea Piers, NY"
+                    placeholder={eventType === 'shoot' ? 'e.g. Stage C, Chelsea Piers, NY' : 'e.g. Google Meet / Studio Boardroom 1'}
                     className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200"
                   />
                 </div>
               )}
 
-              {/* Crew Assigned */}
-              <div>
-                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Assign Required Crew</label>
-                <div className="max-h-32 overflow-y-auto border border-slate-200 rounded-xl p-2 space-y-1">
-                  {users.filter(u => u.role !== 'client').map((u) => {
-                    const isSelected = selectedCrew.includes(u.id);
-                    return (
-                      <div
-                        key={u.id}
-                        onClick={() => {
-                          if (isSelected) {
-                            setSelectedCrew(selectedCrew.filter(id => id !== u.id));
-                          } else {
-                            setSelectedCrew([...selectedCrew, u.id]);
-                          }
-                        }}
-                        className={`flex items-center justify-between p-1.5 rounded-lg text-xs cursor-pointer ${
-                          isSelected ? 'bg-blue-50 text-blue-900 font-bold' : 'hover:bg-slate-50 text-slate-700'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <img src={u.avatar} alt={u.name} className="w-5 h-5 rounded-full object-cover" />
-                          <span>{u.name} ({u.designation})</span>
-                        </div>
-                        {isSelected && <CheckCircle2 className="w-4 h-4 text-blue-600" />}
-                      </div>
-                    );
-                  })}
+              {/* People Involved (Crew, Clients, Guests) */}
+              <div className="space-y-2 pt-1 border-t border-slate-100">
+                <div className="flex items-center justify-between">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    People Involved ({selectedParticipants.length})
+                  </label>
+                  <span className="text-[10px] text-blue-600 font-semibold">
+                    Involved crew, clients, or guests
+                  </span>
                 </div>
+
+                {/* Selected People Chips */}
+                <div className="flex flex-wrap gap-1.5 p-2 bg-slate-50 border border-slate-200 rounded-xl min-h-[42px] items-center">
+                  {selectedParticipants.length === 0 ? (
+                    <span className="text-xs text-slate-400 italic">No people added yet. Select or add below.</span>
+                  ) : (
+                    selectedParticipants.map((p) => (
+                      <span
+                        key={p.id}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white border border-slate-200 text-xs font-semibold text-slate-800 shadow-2xs"
+                      >
+                        {p.avatar ? (
+                          <img src={p.avatar} alt={p.name} className="w-4 h-4 rounded-full object-cover shrink-0" />
+                        ) : (
+                          <span className="w-4 h-4 rounded-full bg-blue-100 text-blue-700 text-[10px] flex items-center justify-center font-bold shrink-0">
+                            {p.name.charAt(0)}
+                          </span>
+                        )}
+                        <span className="truncate max-w-[110px]">{p.name}</span>
+                        <span className="text-[10px] text-slate-400 font-normal">({p.role.split(' ')[0]})</span>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedParticipants(prev => prev.filter(x => x.id !== p.id))}
+                          className="text-slate-400 hover:text-rose-500 ml-0.5"
+                          title="Remove from event"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))
+                  )}
+                </div>
+
+                {/* People Tab Selector */}
+                <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl text-xs font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => setPeopleTab('team')}
+                    className={`flex-1 py-1 px-2 rounded-lg text-center transition-all ${
+                      peopleTab === 'team' ? 'bg-white text-blue-600 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Agency Team ({users.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPeopleTab('clients')}
+                    className={`flex-1 py-1 px-2 rounded-lg text-center transition-all ${
+                      peopleTab === 'clients' ? 'bg-white text-blue-600 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Clients ({clients.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPeopleTab('custom')}
+                    className={`flex-1 py-1 px-2 rounded-lg text-center transition-all ${
+                      peopleTab === 'custom' ? 'bg-white text-blue-600 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    + Add Guest / Person
+                  </button>
+                </div>
+
+                {/* Tab: Team Members */}
+                {peopleTab === 'team' && (
+                  <div className="max-h-36 overflow-y-auto border border-slate-200 rounded-xl p-1.5 space-y-1">
+                    {users.length === 0 ? (
+                      <p className="text-xs text-slate-400 p-2 text-center">No other team members found.</p>
+                    ) : (
+                      users.map((u) => {
+                        const isSelected = selectedParticipants.some(p => p.id === u.id);
+                        return (
+                          <div
+                            key={u.id}
+                            onClick={() => {
+                              if (isSelected) {
+                                setSelectedParticipants(prev => prev.filter(p => p.id !== u.id));
+                              } else {
+                                setSelectedParticipants(prev => [
+                                  ...prev,
+                                  { id: u.id, name: u.name, role: u.designation, avatar: u.avatar, phone: u.phone }
+                                ]);
+                              }
+                            }}
+                            className={`flex items-center justify-between p-1.5 rounded-lg text-xs cursor-pointer transition-colors ${
+                              isSelected ? 'bg-blue-50 text-blue-900 font-bold border border-blue-200' : 'hover:bg-slate-50 text-slate-700'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <img src={u.avatar} alt={u.name} className="w-5 h-5 rounded-full object-cover shrink-0" />
+                              <span className="truncate">{u.name}</span>
+                              <span className="text-[10px] text-slate-400 font-normal truncate">({u.designation})</span>
+                            </div>
+                            {isSelected ? (
+                              <CheckCircle2 className="w-4 h-4 text-blue-600 shrink-0" />
+                            ) : (
+                              <Plus className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+
+                {/* Tab: Clients */}
+                {peopleTab === 'clients' && (
+                  <div className="max-h-36 overflow-y-auto border border-slate-200 rounded-xl p-1.5 space-y-1">
+                    {clients.length === 0 ? (
+                      <p className="text-xs text-slate-400 p-2 text-center">No clients registered yet. Add in Clients tab.</p>
+                    ) : (
+                      clients.map((c) => {
+                        const cid = `client_${c.id}`;
+                        const isSelected = selectedParticipants.some(p => p.id === cid);
+                        return (
+                          <div
+                            key={c.id}
+                            onClick={() => {
+                              if (isSelected) {
+                                setSelectedParticipants(prev => prev.filter(p => p.id !== cid));
+                              } else {
+                                setSelectedParticipants(prev => [
+                                  ...prev,
+                                  {
+                                    id: cid,
+                                    name: c.contactPerson || c.brandName,
+                                    role: `Client (${c.brandName})`,
+                                    avatar: c.logoUrl,
+                                    phone: c.phone
+                                  }
+                                ]);
+                              }
+                            }}
+                            className={`flex items-center justify-between p-1.5 rounded-lg text-xs cursor-pointer transition-colors ${
+                              isSelected ? 'bg-blue-50 text-blue-900 font-bold border border-blue-200' : 'hover:bg-slate-50 text-slate-700'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center text-xs shrink-0">
+                                {c.avatar || '🏢'}
+                              </span>
+                              <span className="truncate">{c.contactPerson || c.brandName}</span>
+                              <span className="text-[10px] text-slate-400 font-normal truncate">({c.companyName})</span>
+                            </div>
+                            {isSelected ? (
+                              <CheckCircle2 className="w-4 h-4 text-blue-600 shrink-0" />
+                            ) : (
+                              <Plus className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+
+                {/* Tab: Custom External Person */}
+                {peopleTab === 'custom' && (
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Person Name *</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Rahul Sharma"
+                          value={customPersonName}
+                          onChange={(e) => setCustomPersonName(e.target.value)}
+                          className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Role / Designation *</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Lead Talent / Model, Sound Tech"
+                          value={customPersonRole}
+                          onChange={(e) => setCustomPersonRole(e.target.value)}
+                          className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Phone Number</label>
+                      <div className="relative flex items-center">
+                        <span className="absolute left-2.5 text-slate-400 text-xs font-mono font-bold">+91</span>
+                        <input
+                          type="tel"
+                          placeholder="+91 98765 43210"
+                          value={customPersonPhone.startsWith('+91') ? customPersonPhone.replace(/^\+91\s*/, '') : customPersonPhone}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setCustomPersonPhone(val ? `+91 ${val}` : '');
+                          }}
+                          className="w-full text-xs pl-10 pr-2.5 py-1.5 rounded-lg border border-slate-200 bg-white font-mono"
+                        />
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={!customPersonName.trim()}
+                      onClick={() => {
+                        if (!customPersonName.trim()) return;
+                        const newId = `custom_${Date.now()}`;
+                        setSelectedParticipants(prev => [
+                          ...prev,
+                          {
+                            id: newId,
+                            name: customPersonName.trim(),
+                            role: customPersonRole.trim() || 'Production Collaborator',
+                            phone: customPersonPhone.trim() || '+91 98765 43210',
+                            isCustom: true
+                          }
+                        ]);
+                        setCustomPersonName('');
+                        setCustomPersonRole('');
+                        setCustomPersonPhone('');
+                      }}
+                      className="w-full py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-2xs transition-colors"
+                    >
+                      <UserPlus className="w-3.5 h-3.5" />
+                      <span>Add Person to Event</span>
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Modal Buttons */}

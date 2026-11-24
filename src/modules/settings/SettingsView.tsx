@@ -13,16 +13,28 @@ import {
   FileCode,
   Flame,
   Database,
-  ExternalLink
+  ExternalLink,
+  Camera,
+  User as UserIcon
 } from 'lucide-react';
+import { ProfilePhotoModal } from '../../components/shared/ProfilePhotoModal';
 
 export const SettingsView: React.FC = () => {
-  const { activeBusiness, setActiveBusiness, addToast, setIsAuthModalOpen, firebaseUser } = useApp();
+  const { 
+    activeBusiness, 
+    setActiveBusiness, 
+    addToast, 
+    setIsAuthModalOpen, 
+    firebaseUser,
+    currentUser,
+    updateUserAvatar
+  } = useApp();
 
   const [bizName, setBizName] = useState(activeBusiness.name);
   const [tagline, setTagline] = useState(activeBusiness.tagline);
   const [timezone, setTimezone] = useState(activeBusiness.timezone);
   const [storageProvider, setStorageProvider] = useState(activeBusiness.storageProvider);
+  const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,6 +74,55 @@ export const SettingsView: React.FC = () => {
         <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
           Workspace profile, storage integration abstraction, and server-side RBAC policy
         </p>
+      </div>
+
+      {/* User Account Profile & Avatar Section */}
+      <div className="bg-white rounded-3xl border border-slate-200/80 p-5 sm:p-6 shadow-xs">
+        <h3 className="text-sm font-bold text-slate-900 pb-3 border-b border-slate-100 flex items-center gap-2">
+          <UserIcon className="w-4 h-4 text-blue-600" />
+          <span>Your User Profile & Photo</span>
+        </h3>
+
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-4">
+          <div className="flex items-center gap-4">
+            <div className="relative group">
+              <img
+                src={currentUser.avatar}
+                alt={currentUser.name}
+                className="w-16 h-16 rounded-full object-cover border-2 border-white shadow-md ring-2 ring-slate-100"
+              />
+              <button
+                type="button"
+                onClick={() => setIsAvatarModalOpen(true)}
+                className="absolute inset-0 rounded-full bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white"
+                title="Change Photo"
+              >
+                <Camera className="w-5 h-5" />
+              </button>
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-slate-900">{currentUser.name}</h4>
+              <p className="text-xs text-slate-500 font-mono">{currentUser.email}</p>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-[11px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">
+                  {currentUser.designation}
+                </span>
+                <span className="text-[11px] text-slate-400 font-mono">
+                  {currentUser.phone}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsAvatarModalOpen(true)}
+            className="px-4 py-2 rounded-xl border border-blue-200 bg-blue-50/60 hover:bg-blue-50 text-blue-700 font-bold text-xs flex items-center gap-2 transition-all active:scale-95 shadow-2xs"
+          >
+            <Camera className="w-4 h-4 text-blue-600" />
+            <span>Change Profile Photo</span>
+          </button>
+        </div>
       </div>
 
       {/* Profile & Storage Form */}
@@ -190,6 +251,16 @@ export const SettingsView: React.FC = () => {
           * Note: Route guards provide immediate UI guidance. Backend Cloud Firestore & Storage rules enforce hard isolation against cross-tenant attacks and parameter tampering.
         </p>
       </div>
+
+      {/* Profile Photo Edit & Crop Modal */}
+      <ProfilePhotoModal
+        isOpen={isAvatarModalOpen}
+        onClose={() => setIsAvatarModalOpen(false)}
+        currentAvatar={currentUser.avatar}
+        onSave={(newAvatarUrl) => {
+          updateUserAvatar(newAvatarUrl);
+        }}
+      />
 
     </div>
   );

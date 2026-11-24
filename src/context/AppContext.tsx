@@ -331,6 +331,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [leaveRecords, setLeaveRecords] = useState<LeaveRecord[]>(mockLeaveRecords);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem('flowdeck_db_users', JSON.stringify(users));
+    } catch {}
+  }, [users]);
+
   // Auto-sync domain states to local cache
   useEffect(() => {
     try {
@@ -1177,17 +1183,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateUserAvatar = (newAvatarUrl: string) => {
-    if (!newAvatarUrl.trim()) return;
-    const updatedUser = { ...currentUser, avatar: newAvatarUrl.trim() };
+    const cleanUrl = newAvatarUrl.trim();
+    if (!cleanUrl) return;
+    const updatedUser: User = { ...currentUser, avatar: cleanUrl };
     setCurrentUser(updatedUser);
-    setUsers((prev) => prev.map((u) => u.id === currentUser.id ? updatedUser : u));
+    setUsers((prev) => {
+      const nextUsers = prev.some((u) => u.id === currentUser.id)
+        ? prev.map((u) => (u.id === currentUser.id ? updatedUser : u))
+        : [updatedUser, ...prev];
+      try {
+        localStorage.setItem('flowdeck_db_users', JSON.stringify(nextUsers));
+      } catch {}
+      return nextUsers;
+    });
     try {
       const saved = localStorage.getItem('flowdeck_session');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        localStorage.setItem('flowdeck_session', JSON.stringify({ ...parsed, user: updatedUser }));
-      }
+      const parsed = saved ? JSON.parse(saved) : {};
+      localStorage.setItem('flowdeck_session', JSON.stringify({ ...parsed, isAuthenticated: true, user: updatedUser }));
     } catch {}
+
+    saveFirestoreDoc(COLLECTIONS.USERS, updatedUser);
+
     addToast('Profile Photo Updated', 'Your profile picture has been updated.', 'success');
   };
 
