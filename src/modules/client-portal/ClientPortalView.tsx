@@ -31,9 +31,9 @@ export const ClientPortalView: React.FC = () => {
   const activeVersion = versions[versions.length - 1] || versions[0];
 
   const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(14);
+  const [currentTime, setCurrentTime] = useState(0);
   const [commentInput, setCommentInput] = useState('');
-  const [signerName, setSignerName] = useState('Claire Dupont');
+  const [signerName, setSignerName] = useState(currentUser.name);
   const [isRevisionOpen, setIsRevisionOpen] = useState(false);
   const [revisionNotes, setRevisionNotes] = useState('');
 

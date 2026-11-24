@@ -21,7 +21,7 @@ interface Props {
 }
 
 export const ProjectAssetsTab: React.FC<Props> = ({ project }) => {
-  const { assets, uploadSimulatedAsset, users, currentUser } = useApp();
+  const { assets, registerProjectAsset, users, currentUser } = useApp();
 
   const projectAssets = assets.filter(a => a.projectId === project.id);
 
@@ -49,7 +49,7 @@ export const ProjectAssetsTab: React.FC<Props> = ({ project }) => {
   const handleUploadSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!assetName.trim()) return;
-    uploadSimulatedAsset(project.id, selectedCategory, assetName.trim(), assetUrl.trim(), assetSize);
+    registerProjectAsset(project.id, selectedCategory, assetName.trim(), assetUrl.trim(), assetSize);
     setIsUploadOpen(false);
     setAssetName('');
   };

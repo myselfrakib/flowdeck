@@ -42,7 +42,7 @@ export const ProjectApprovalsTab: React.FC<Props> = ({ project }) => {
 
   // Video Player state
   const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(14); // starts at 00:14 for demo note
+  const [currentTime, setCurrentTime] = useState(0);
   const [commentInput, setCommentInput] = useState('');
   const [isRevisionModalOpen, setIsRevisionModalOpen] = useState(false);
   const [revisionNotes, setRevisionNotes] = useState('');

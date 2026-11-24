@@ -87,7 +87,6 @@ interface AppContextType {
     agencyTagline?: string;
   }) => Promise<void>;
   logout: () => Promise<void>;
-  loginAsRole: (role: UserRole) => void;
 
   // Navigation
   currentView: AppView;
@@ -139,7 +138,7 @@ interface AppContextType {
   approveVersionInternally: (versionId: string) => void;
   approveVersionClient: (versionId: string, signatureName: string) => void;
   requestVersionChanges: (versionId: string, notes: string) => void;
-  uploadSimulatedAsset: (projectId: string, category: ProjectAsset['category'], name: string, url: string, size: string) => void;
+  registerProjectAsset: (projectId: string, category: ProjectAsset['category'], name: string, url: string, size: string) => void;
   markNotificationAsRead: (id: string) => void;
   applyForLeave: (leave: Omit<LeaveRecord, 'id' | 'status'>) => void;
   rescheduleShoot: (shootId: string, newStartAt: string, newEndAt: string, reason: string) => void;
@@ -324,19 +323,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch {}
     localStorage.removeItem('flowdeck_session');
     setIsAuthenticated(false);
-  };
-
-  const loginAsRole = (role: UserRole) => {
-    const matched = users.find(u => u.role === role) || users[0];
-    setCurrentUser(matched);
-    setIsAuthenticated(true);
-    localStorage.setItem('flowdeck_session', JSON.stringify({ isAuthenticated: true, user: matched }));
-
-    if (matched.role === 'client') {
-      setCurrentView('client_portal');
-    } else {
-      setCurrentView('overview');
-    }
   };
 
   const addToast = (title: string, message: string, type: 'success' | 'info' | 'warning' | 'danger' = 'info') => {
@@ -773,7 +759,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     addToast('Revisions Requested', 'Consolidated feedback dispatched to video editing room.', 'warning');
   };
 
-  const uploadSimulatedAsset = (
+  const registerProjectAsset = (
     projectId: string,
     category: ProjectAsset['category'],
     name: string,
@@ -930,7 +916,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         login,
         signup,
         logout,
-        loginAsRole,
         currentView,
         setCurrentView,
         selectedProjectId,
@@ -974,7 +959,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         approveVersionInternally,
         approveVersionClient,
         requestVersionChanges,
-        uploadSimulatedAsset,
+        registerProjectAsset,
         markNotificationAsRead,
         applyForLeave,
         rescheduleShoot,

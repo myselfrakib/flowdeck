@@ -45,7 +45,7 @@ export const FirebaseModal: React.FC = () => {
     editVersions,
     activityLogs,
     selectedProjectId,
-    uploadSimulatedAsset
+    registerProjectAsset
   } = useApp();
 
   const [activeTab, setActiveTab] = useState<'auth' | 'database' | 'storage' | 'config'>('auth');
@@ -158,7 +158,7 @@ export const FirebaseModal: React.FC = () => {
 
       // Also register into active project assets if project is selected
       if (selectedProjectId) {
-        uploadSimulatedAsset(
+        registerProjectAsset(
           selectedProjectId,
           uploadCategory as any,
           res.name,

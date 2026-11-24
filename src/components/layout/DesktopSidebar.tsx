@@ -44,7 +44,7 @@ export const DesktopSidebar: React.FC = () => {
     { id: 'calendar', label: 'Shoot Calendar', icon: CalendarDays },
     { id: 'team', label: 'Team & Crew', icon: Users, hidden: isClient },
     { id: 'clients', label: 'Client Accounts', icon: Building, hidden: isClient },
-    { id: 'client_portal', label: 'Client Approval View', icon: ExternalLink },
+    { id: 'client_portal', label: 'Client Approval View', icon: ExternalLink, hidden: !isClient },
     { id: 'hr', label: 'HR & Availability', icon: ShieldAlert, hidden: !isHRAuthorized },
     { id: 'reports', label: 'Operations & KPIs', icon: BarChart3, hidden: isClient },
     { id: 'settings', label: 'Settings & Security', icon: Settings, hidden: isClient }

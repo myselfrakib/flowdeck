@@ -266,20 +266,6 @@ export const TopBar: React.FC = () => {
             </button>
           )}
 
-          {/* Direct Client Portal Link Preview button */}
-          <button
-            onClick={() => setCurrentView('client_portal')}
-            className={`hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-medium transition-all ${
-              currentView === 'client_portal' 
-                ? 'bg-emerald-50 text-emerald-800 border-emerald-300' 
-                : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
-            }`}
-            title="Preview isolated Client Approval Portal"
-          >
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Client View</span>
-          </button>
-
         </div>
 
       </div>

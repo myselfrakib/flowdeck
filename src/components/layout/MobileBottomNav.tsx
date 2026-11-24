@@ -51,7 +51,7 @@ export const MobileBottomNav: React.FC = () => {
     { id: 'tasks', label: 'All Tasks & Boards', icon: FolderKanban, description: 'Cross-project task list & board' },
     { id: 'team', label: 'Crew & Personnel', icon: Users, description: 'Directory with 1-tap call & SMS', hidden: currentUser.role === 'client' },
     { id: 'clients', label: 'Client Accounts', icon: Building, description: 'Brand portals & client contacts', hidden: currentUser.role === 'client' },
-    { id: 'client_portal', label: 'Client Approval View', icon: ExternalLink, description: 'Zero-gossip client review screener' },
+    { id: 'client_portal', label: 'Client Approval View', icon: ExternalLink, description: 'Zero-gossip client review screener', hidden: currentUser.role !== 'client' },
     { id: 'hr', label: 'HR & Availability', icon: ShieldAlert, description: 'Leave & attendance records', hidden: !isHRAuthorized },
     { id: 'reports', label: 'Operations & KPIs', icon: BarChart3, description: 'Delivery metrics & cycle times', hidden: currentUser.role === 'client' },
     { id: 'settings', label: 'Settings & Security', icon: Settings, description: 'RBAC matrix & storage provider', hidden: currentUser.role === 'client' }
