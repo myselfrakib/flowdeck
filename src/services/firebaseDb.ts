@@ -18,13 +18,15 @@ import { Project, ClientProfile, Task, Message, ShootEvent, EditVersion, Activit
 
 // Collection Constants
 export const COLLECTIONS = {
-  PROJECTS: 'studioflow_projects',
-  CLIENTS: 'studioflow_clients',
-  TASKS: 'studioflow_tasks',
-  MESSAGES: 'studioflow_messages',
-  SHOOTS: 'studioflow_shoots',
-  VERSIONS: 'studioflow_versions',
-  LOGS: 'studioflow_activity_logs'
+  PROJECTS: 'flowdeck_projects',
+  CLIENTS: 'flowdeck_clients',
+  TASKS: 'flowdeck_tasks',
+  MESSAGES: 'flowdeck_messages',
+  SHOOTS: 'flowdeck_shoots',
+  ROOMS: 'flowdeck_rooms',
+  VERSIONS: 'flowdeck_versions',
+  ASSETS: 'flowdeck_assets',
+  LOGS: 'flowdeck_activity_logs'
 } as const;
 
 /**
@@ -53,25 +55,33 @@ export const subscribeFirestoreCollection = <T>(
 };
 
 /**
- * Write or update a document in Firestore
+ * Write or update a document in Firestore with silent offline fallback
  */
 export const saveFirestoreDoc = async <T extends { id: string }>(
   collectionName: string,
   data: T
 ): Promise<void> => {
-  const docRef = doc(db, collectionName, data.id);
-  await setDoc(docRef, data, { merge: true });
+  try {
+    const docRef = doc(db, collectionName, data.id);
+    await setDoc(docRef, data, { merge: true });
+  } catch (err: any) {
+    console.warn(`Firestore save error on ${collectionName}/${data.id}:`, err?.message || err);
+  }
 };
 
 /**
- * Delete document from Firestore
+ * Delete document from Firestore with silent fallback
  */
 export const deleteFirestoreDoc = async (
   collectionName: string,
   id: string
 ): Promise<void> => {
-  const docRef = doc(db, collectionName, id);
-  await deleteDoc(docRef);
+  try {
+    const docRef = doc(db, collectionName, id);
+    await deleteDoc(docRef);
+  } catch (err: any) {
+    console.warn(`Firestore delete error on ${collectionName}/${id}:`, err?.message || err);
+  }
 };
 
 /**

@@ -41,7 +41,12 @@ import {
   firebaseSignOut 
 } from '../services/firebaseAuth';
 import type { User as FirebaseUser } from 'firebase/auth';
-import { saveFirestoreDoc, COLLECTIONS } from '../services/firebaseDb';
+import { 
+  saveFirestoreDoc, 
+  deleteFirestoreDoc, 
+  subscribeFirestoreCollection, 
+  COLLECTIONS 
+} from '../services/firebaseDb';
 
 export type AppView = 
   | 'overview' 
@@ -190,18 +195,194 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [activeProjectTab, setActiveProjectTab] = useState<ProjectTabType>('overview');
 
-  // Domain states
-  const [projects, setProjects] = useState<Project[]>(mockProjects);
-  const [tasks, setTasks] = useState<Task[]>(mockTasks);
-  const [rooms, setRooms] = useState<Room[]>(mockRooms);
-  const [messages, setMessages] = useState<Record<string, Message[]>>(mockMessages);
-  const [shootEvents, setShootEvents] = useState<ShootEvent[]>(mockShootEvents);
-  const [editVersions, setEditVersions] = useState<EditVersion[]>(mockEditVersions);
-  const [assets, setAssets] = useState<ProjectAsset[]>(mockAssets);
-  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>(mockActivityLogs);
+  // Domain states with localStorage persistence fallback
+  const [projects, setProjects] = useState<Project[]>(() => {
+    try {
+      const saved = localStorage.getItem('flowdeck_db_projects');
+      return saved ? JSON.parse(saved) : mockProjects;
+    } catch {
+      return mockProjects;
+    }
+  });
+
+  const [tasks, setTasks] = useState<Task[]>(() => {
+    try {
+      const saved = localStorage.getItem('flowdeck_db_tasks');
+      return saved ? JSON.parse(saved) : mockTasks;
+    } catch {
+      return mockTasks;
+    }
+  });
+
+  const [rooms, setRooms] = useState<Room[]>(() => {
+    try {
+      const saved = localStorage.getItem('flowdeck_db_rooms');
+      return saved ? JSON.parse(saved) : mockRooms;
+    } catch {
+      return mockRooms;
+    }
+  });
+
+  const [messages, setMessages] = useState<Record<string, Message[]>>(() => {
+    try {
+      const saved = localStorage.getItem('flowdeck_db_messages');
+      return saved ? JSON.parse(saved) : mockMessages;
+    } catch {
+      return mockMessages;
+    }
+  });
+
+  const [shootEvents, setShootEvents] = useState<ShootEvent[]>(() => {
+    try {
+      const saved = localStorage.getItem('flowdeck_db_shoots');
+      return saved ? JSON.parse(saved) : mockShootEvents;
+    } catch {
+      return mockShootEvents;
+    }
+  });
+
+  const [editVersions, setEditVersions] = useState<EditVersion[]>(() => {
+    try {
+      const saved = localStorage.getItem('flowdeck_db_versions');
+      return saved ? JSON.parse(saved) : mockEditVersions;
+    } catch {
+      return mockEditVersions;
+    }
+  });
+
+  const [assets, setAssets] = useState<ProjectAsset[]>(() => {
+    try {
+      const saved = localStorage.getItem('flowdeck_db_assets');
+      return saved ? JSON.parse(saved) : mockAssets;
+    } catch {
+      return mockAssets;
+    }
+  });
+
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>(() => {
+    try {
+      const saved = localStorage.getItem('flowdeck_db_logs');
+      return saved ? JSON.parse(saved) : mockActivityLogs;
+    } catch {
+      return mockActivityLogs;
+    }
+  });
+
   const [notifications, setNotifications] = useState<NotificationItem[]>(mockNotifications);
-  const [clients, setClients] = useState<ClientProfile[]>(mockClients);
+
+  const [clients, setClients] = useState<ClientProfile[]>(() => {
+    try {
+      const saved = localStorage.getItem('flowdeck_db_clients');
+      return saved ? JSON.parse(saved) : mockClients;
+    } catch {
+      return mockClients;
+    }
+  });
+
   const [leaveRecords, setLeaveRecords] = useState<LeaveRecord[]>(mockLeaveRecords);
+
+  // Auto-sync domain states to local cache
+  useEffect(() => {
+    try {
+      localStorage.setItem('flowdeck_db_projects', JSON.stringify(projects));
+    } catch {}
+  }, [projects]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('flowdeck_db_tasks', JSON.stringify(tasks));
+    } catch {}
+  }, [tasks]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('flowdeck_db_clients', JSON.stringify(clients));
+    } catch {}
+  }, [clients]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('flowdeck_db_shoots', JSON.stringify(shootEvents));
+    } catch {}
+  }, [shootEvents]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('flowdeck_db_rooms', JSON.stringify(rooms));
+    } catch {}
+  }, [rooms]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('flowdeck_db_messages', JSON.stringify(messages));
+    } catch {}
+  }, [messages]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('flowdeck_db_versions', JSON.stringify(editVersions));
+    } catch {}
+  }, [editVersions]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('flowdeck_db_assets', JSON.stringify(assets));
+    } catch {}
+  }, [assets]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('flowdeck_db_logs', JSON.stringify(activityLogs));
+    } catch {}
+  }, [activityLogs]);
+
+  // Real-time Firestore Sync Listeners
+  useEffect(() => {
+    const unsubProjects = subscribeFirestoreCollection<Project>(COLLECTIONS.PROJECTS, (remoteProjects) => {
+      if (remoteProjects && remoteProjects.length > 0) {
+        setProjects(remoteProjects);
+      }
+    });
+
+    const unsubClients = subscribeFirestoreCollection<ClientProfile>(COLLECTIONS.CLIENTS, (remoteClients) => {
+      if (remoteClients && remoteClients.length > 0) {
+        setClients(remoteClients);
+      }
+    });
+
+    const unsubTasks = subscribeFirestoreCollection<Task>(COLLECTIONS.TASKS, (remoteTasks) => {
+      if (remoteTasks && remoteTasks.length > 0) {
+        setTasks(remoteTasks);
+      }
+    });
+
+    const unsubShoots = subscribeFirestoreCollection<ShootEvent>(COLLECTIONS.SHOOTS, (remoteShoots) => {
+      if (remoteShoots && remoteShoots.length > 0) {
+        setShootEvents(remoteShoots);
+      }
+    });
+
+    const unsubRooms = subscribeFirestoreCollection<Room>(COLLECTIONS.ROOMS, (remoteRooms) => {
+      if (remoteRooms && remoteRooms.length > 0) {
+        setRooms(remoteRooms);
+      }
+    });
+
+    const unsubVersions = subscribeFirestoreCollection<EditVersion>(COLLECTIONS.VERSIONS, (remoteVersions) => {
+      if (remoteVersions && remoteVersions.length > 0) {
+        setEditVersions(remoteVersions);
+      }
+    });
+
+    return () => {
+      unsubProjects();
+      unsubClients();
+      unsubTasks();
+      unsubShoots();
+      unsubRooms();
+      unsubVersions();
+    };
+  }, []);
 
   // Modals & Popups
   const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false);
@@ -359,6 +540,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     setProjects((prev) => [projectItem, ...prev]);
+    saveFirestoreDoc(COLLECTIONS.PROJECTS, projectItem);
 
     // Create default rooms for this project (Client room + Internal production room)
     const clientRoom: Room = {
@@ -390,6 +572,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     setRooms((prev) => [...prev, clientRoom, internalRoom]);
+    saveFirestoreDoc(COLLECTIONS.ROOMS, clientRoom);
+    saveFirestoreDoc(COLLECTIONS.ROOMS, internalRoom);
 
     // Create standard initial task
     const initialTask: Task = {
@@ -408,6 +592,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: new Date().toISOString()
     };
     setTasks((prev) => [initialTask, ...prev]);
+    saveFirestoreDoc(COLLECTIONS.TASKS, initialTask);
 
     // Activity Log
     setActivityLogs((prev) => [
@@ -428,15 +613,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateProjectStatus = (projectId: string, status: ProjectStatus) => {
+    let updatedProj: Project | null = null;
     setProjects((prev) =>
       prev.map((p) => {
         if (p.id === projectId) {
           const progress = status === 'approved' ? 95 : status === 'delivered' ? 100 : p.progressPercent;
-          return { ...p, status, progressPercent: progress };
+          updatedProj = { ...p, status, progressPercent: progress };
+          return updatedProj;
         }
         return p;
       })
     );
+    if (updatedProj) {
+      saveFirestoreDoc(COLLECTIONS.PROJECTS, updatedProj);
+    }
 
     setActivityLogs((prev) => [
       {
@@ -461,6 +651,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: new Date().toISOString()
     };
     setTasks((prev) => [newTask, ...prev]);
+    saveFirestoreDoc(COLLECTIONS.TASKS, newTask);
     setActivityLogs((prev) => [
       {
         id: 'act_' + Math.random().toString(36).substr(2, 9),
@@ -477,9 +668,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateTaskStatus = (taskId: string, status: TaskStatus) => {
+    let updatedTaskObj: Task | null = null;
     setTasks((prev) =>
-      prev.map((t) => (t.id === taskId ? { ...t, status } : t))
+      prev.map((t) => {
+        if (t.id === taskId) {
+          updatedTaskObj = { ...t, status };
+          return updatedTaskObj;
+        }
+        return t;
+      })
     );
+    if (updatedTaskObj) {
+      saveFirestoreDoc(COLLECTIONS.TASKS, updatedTaskObj);
+    }
     const task = tasks.find((t) => t.id === taskId);
     if (task) {
       setActivityLogs((prev) => [
@@ -566,6 +767,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     setTasks((prev) => [newTask, ...prev]);
+    saveFirestoreDoc(COLLECTIONS.TASKS, newTask);
 
     setActivityLogs((prev) => [
       {
@@ -859,6 +1061,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     setShootEvents((prev) => [newShoot, ...prev]);
+    saveFirestoreDoc(COLLECTIONS.SHOOTS, newShoot);
 
     setActivityLogs((prev) => [
       {
@@ -888,6 +1091,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     setClients((prev) => [clientItem, ...prev]);
+    saveFirestoreDoc(COLLECTIONS.CLIENTS, clientItem);
 
     setActivityLogs((prev) => [
       {
@@ -906,9 +1110,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateClient = (clientId: string, updates: Partial<ClientProfile>) => {
+    let updatedClientObj: ClientProfile | null = null;
     setClients((prev) =>
-      prev.map((c) => (c.id === clientId ? { ...c, ...updates } : c))
+      prev.map((c) => {
+        if (c.id === clientId) {
+          updatedClientObj = { ...c, ...updates };
+          return updatedClientObj;
+        }
+        return c;
+      })
     );
+    if (updatedClientObj) {
+      saveFirestoreDoc(COLLECTIONS.CLIENTS, updatedClientObj);
+    }
     addToast('Client Updated', 'Client profile and branding updated successfully.', 'success');
   };
 
