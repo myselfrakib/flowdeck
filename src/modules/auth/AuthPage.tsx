@@ -101,7 +101,7 @@ const ROLE_OPTIONS: RoleOption[] = [
 ];
 
 export const AuthPage: React.FC = () => {
-  const { login, signup, loginAsRole, addToast } = useApp();
+  const { login, signup, addToast } = useApp();
 
   const [mode, setMode] = useState<'login' | 'signup'>('signup');
   const [loading, setLoading] = useState(false);
@@ -148,12 +148,6 @@ export const AuthPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleQuickDemo = (role: UserRole) => {
-    loginAsRole(role);
-    const meta = ROLE_OPTIONS.find(r => r.role === role);
-    addToast('Signed In', `Loaded ${meta?.title} workspace`, 'info');
   };
 
   return (
@@ -315,46 +309,6 @@ export const AuthPage: React.FC = () => {
           </button>
 
         </form>
-
-        {/* Quick Demo Logins for Fast Verification */}
-        <div className="pt-2 border-t border-slate-100 text-center">
-          <p className="text-[11px] text-slate-400 mb-2 font-medium">
-            Demo quick switch:
-          </p>
-          <div className="flex items-center justify-center gap-2 flex-wrap text-xs">
-            <button
-              type="button"
-              onClick={() => handleQuickDemo('owner')}
-              className="text-slate-600 hover:text-blue-600 font-medium px-2 py-1 rounded hover:bg-slate-100 transition-colors"
-            >
-              Agency Owner
-            </button>
-            <span className="text-slate-300">•</span>
-            <button
-              type="button"
-              onClick={() => handleQuickDemo('videographer')}
-              className="text-slate-600 hover:text-blue-600 font-medium px-2 py-1 rounded hover:bg-slate-100 transition-colors"
-            >
-              Videographer
-            </button>
-            <span className="text-slate-300">•</span>
-            <button
-              type="button"
-              onClick={() => handleQuickDemo('video_editor')}
-              className="text-slate-600 hover:text-blue-600 font-medium px-2 py-1 rounded hover:bg-slate-100 transition-colors"
-            >
-              Editor
-            </button>
-            <span className="text-slate-300">•</span>
-            <button
-              type="button"
-              onClick={() => handleQuickDemo('client')}
-              className="text-slate-600 hover:text-blue-600 font-medium px-2 py-1 rounded hover:bg-slate-100 transition-colors"
-            >
-              Client Portal
-            </button>
-          </div>
-        </div>
 
       </div>
 
