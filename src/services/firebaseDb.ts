@@ -29,7 +29,8 @@ export const COLLECTIONS = {
   LOGS: 'flowdeck_activity_logs',
   USERS: 'flowdeck_users',
   BUSINESSES: 'flowdeck_businesses',
-  NOTIFICATIONS: 'flowdeck_notifications'
+  NOTIFICATIONS: 'flowdeck_notifications',
+  INVITATIONS: 'flowdeck_invitations'
 } as const;
 
 /**

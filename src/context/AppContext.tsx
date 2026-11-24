@@ -16,7 +16,8 @@ import {
   TaskStatus,
   ProjectStatus,
   VersionStatus,
-  UserRole
+  UserRole,
+  AgencyInvitation
 } from '../types';
 import { 
   mockBusinesses, 
@@ -171,6 +172,10 @@ interface AppContextType {
   updateClient: (clientId: string, updates: Partial<ClientProfile>) => void;
   updateUserAvatar: (newAvatarUrl: string) => void;
   createTeamMember: (memberData: Omit<User, 'id'>) => User;
+  invitations: AgencyInvitation[];
+  createAgencyInvitation: (data: Omit<AgencyInvitation, 'id' | 'createdAt' | 'status'>) => AgencyInvitation;
+  revokeAgencyInvitation: (id: string) => void;
+  removeEmployee: (userId: string) => void;
 }
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -353,6 +358,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch {}
   }, [notifications]);
 
+  const [invitations, setInvitations] = useState<AgencyInvitation[]>(() => {
+    try {
+      const saved = localStorage.getItem('flowdeck_db_invitations');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('flowdeck_db_invitations', JSON.stringify(invitations));
+    } catch {}
+  }, [invitations]);
+
   const [clients, setClients] = useState<ClientProfile[]>(() => {
     try {
       const saved = localStorage.getItem('flowdeck_db_clients');
@@ -530,6 +550,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     });
 
+    const unsubInvitations = subscribeFirestoreCollection<AgencyInvitation>(COLLECTIONS.INVITATIONS, (remoteInvites) => {
+      if (remoteInvites) {
+        setInvitations(remoteInvites);
+        try {
+          localStorage.setItem('flowdeck_db_invitations', JSON.stringify(remoteInvites));
+        } catch {}
+      }
+    });
+
     return () => {
       unsubUsers();
       unsubBusinesses();
@@ -540,6 +569,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       unsubRooms();
       unsubVersions();
       unsubNotifications();
+      unsubInvitations();
     };
   }, []);
 
@@ -1639,6 +1669,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       'success'
     );
 
+    // 6. Update invitation status to accepted
+    const matchingInvite = invitations.find(i => 
+      (i.token && i.token === invite.token) || 
+      (i.bizId === invite.bizId && i.email.toLowerCase() === currentUser.email.toLowerCase())
+    );
+    if (matchingInvite) {
+      const updatedInv: AgencyInvitation = { ...matchingInvite, status: 'accepted' };
+      setInvitations(prev => prev.map(inv => inv.id === matchingInvite.id ? updatedInv : inv));
+      saveFirestoreDoc(COLLECTIONS.INVITATIONS, updatedInv);
+    }
+
     setPendingInvite(null);
     setIsInviteModalOpen(false);
   };
@@ -1652,6 +1693,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       `You declined the invitation to join ${agencyName}.`,
       'warning'
     );
+
+    // Update invitation status to rejected
+    const matchingInvite = invitations.find(i => 
+      (i.token && i.token === invite?.token) || 
+      (invite && i.bizId === invite.bizId && i.email.toLowerCase() === currentUser.email.toLowerCase())
+    );
+    if (matchingInvite) {
+      const updatedInv: AgencyInvitation = { ...matchingInvite, status: 'rejected' };
+      setInvitations(prev => prev.map(inv => inv.id === matchingInvite.id ? updatedInv : inv));
+      saveFirestoreDoc(COLLECTIONS.INVITATIONS, updatedInv);
+    }
 
     if (currentUser) {
       const declineNotif: NotificationItem = {
@@ -1676,6 +1728,76 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setPendingInvite(null);
     setIsInviteModalOpen(false);
+  };
+
+  const createAgencyInvitation = (data: Omit<AgencyInvitation, 'id' | 'createdAt' | 'status'>): AgencyInvitation => {
+    const inviteId = 'inv_' + Math.random().toString(36).substr(2, 9);
+    const newInvite: AgencyInvitation = {
+      ...data,
+      id: inviteId,
+      status: 'pending',
+      createdAt: new Date().toISOString()
+    };
+
+    setInvitations((prev) => [newInvite, ...prev.filter(i => i.id !== inviteId)]);
+    saveFirestoreDoc(COLLECTIONS.INVITATIONS, newInvite);
+
+    // If an existing registered user matches this email, send direct notification
+    const matchedUser = users.find(u => u.email.trim().toLowerCase() === newInvite.email.trim().toLowerCase());
+    if (matchedUser) {
+      sendAgencyInviteNotification(matchedUser, newInvite.role, activeBusiness, newInvite.token);
+    }
+
+    addToast('Invitation Created', `Invitation sent to ${newInvite.name} (${newInvite.email}) awaiting confirmation.`, 'info');
+    return newInvite;
+  };
+
+  const revokeAgencyInvitation = (inviteId: string) => {
+    const target = invitations.find(i => i.id === inviteId);
+    setInvitations((prev) => prev.filter(i => i.id !== inviteId));
+    deleteFirestoreDoc(COLLECTIONS.INVITATIONS, inviteId);
+    if (target) {
+      addToast('Invitation Revoked', `Invitation for ${target.name} (${target.email}) was cancelled.`, 'info');
+    }
+  };
+
+  const removeEmployee = (userId: string) => {
+    if (currentUser.role !== 'owner') {
+      addToast('Permission Denied', 'Only the agency owner can remove employees.', 'danger');
+      return;
+    }
+    if (userId === currentUser.id) {
+      addToast('Action Prohibited', 'You cannot remove yourself from your own agency.', 'warning');
+      return;
+    }
+
+    const targetUser = users.find(u => u.id === userId);
+    if (!targetUser) return;
+
+    setUsers((prev) => {
+      const nextUsers = prev.filter(u => u.id !== userId);
+      try {
+        localStorage.setItem('flowdeck_db_users', JSON.stringify(nextUsers));
+      } catch {}
+      return nextUsers;
+    });
+
+    deleteFirestoreDoc(COLLECTIONS.USERS, userId);
+
+    setActivityLogs((prev) => [
+      {
+        id: 'act_' + Math.random().toString(36).substr(2, 9),
+        projectId: projects[0]?.id || 'biz_apex',
+        actorId: currentUser.id,
+        action: 'removed employee from agency',
+        target: `${targetUser.name} (${targetUser.designation})`,
+        timestamp: 'Just now',
+        category: 'project'
+      },
+      ...prev
+    ]);
+
+    addToast('Employee Removed', `${targetUser.name} has been removed from the agency personnel roster.`, 'info');
   };
 
   return (
@@ -1752,7 +1874,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         createClient,
         updateClient,
         updateUserAvatar,
-        createTeamMember
+        createTeamMember,
+        invitations,
+        createAgencyInvitation,
+        revokeAgencyInvitation,
+        removeEmployee
       }}
     >
       {children}

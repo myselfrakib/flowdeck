@@ -27,6 +27,25 @@ export interface User {
   designation: string;
   availability: 'available' | 'on_shoot' | 'busy' | 'on_leave';
   isExternalClient?: boolean;
+  membershipStatus?: MembershipStatus;
+  businessId?: string;
+  invitedAt?: string;
+}
+
+export interface AgencyInvitation {
+  id: string;
+  bizId: string;
+  agencyName: string;
+  agencyLogo?: string;
+  name: string;
+  email: string;
+  phone: string;
+  role: string;
+  sysRole: UserRole;
+  token: string;
+  status: 'pending' | 'accepted' | 'rejected' | 'revoked';
+  invitedBy: string;
+  createdAt: string;
 }
 
 export interface Business {

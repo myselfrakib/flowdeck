@@ -19,9 +19,13 @@ import {
   Sparkles,
   MessageSquare,
   Smartphone,
-  UserCheck
+  UserCheck,
+  Trash2,
+  Clock,
+  UserX,
+  AlertTriangle
 } from 'lucide-react';
-import { UserRole } from '../../types';
+import { User, UserRole, AgencyInvitation } from '../../types';
 
 export const TeamDirectoryView: React.FC = () => {
   const { 
@@ -29,12 +33,21 @@ export const TeamDirectoryView: React.FC = () => {
     currentUser, 
     activeBusiness, 
     addToast, 
-    createTeamMember, 
-    sendAgencyInviteNotification 
+    sendAgencyInviteNotification,
+    invitations,
+    createAgencyInvitation,
+    revokeAgencyInvitation,
+    removeEmployee
   } = useApp();
+
+  const [activeTab, setActiveTab] = useState<'active' | 'pending'>('active');
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [isInviteOpen, setIsInviteOpen] = useState(false);
+
+  // Deletion and revocation confirmation modals
+  const [employeeToDelete, setEmployeeToDelete] = useState<User | null>(null);
+  const [inviteToRevoke, setInviteToRevoke] = useState<AgencyInvitation | null>(null);
 
   // Invite form
   const [inviteName, setInviteName] = useState('');
@@ -61,6 +74,7 @@ export const TeamDirectoryView: React.FC = () => {
 
   const filteredUsers = users.filter((u) => {
     if (u.role === 'client') return false; // clients are in Client Directory
+    if (u.membershipStatus === 'pending') return false; // pending members are in Pending tab
     const matchSearch = 
       u.name.toLowerCase().includes(search.toLowerCase()) ||
       u.phone.includes(search) ||
@@ -68,6 +82,18 @@ export const TeamDirectoryView: React.FC = () => {
       u.designation.toLowerCase().includes(search.toLowerCase());
     const matchRole = roleFilter === 'all' || u.role === roleFilter;
     return matchSearch && matchRole;
+  });
+
+  const pendingInvites = (invitations || []).filter((inv) => {
+    const isBiz = inv.bizId === activeBusiness.id;
+    const isPending = inv.status === 'pending';
+    const matchSearch = 
+      inv.name.toLowerCase().includes(search.toLowerCase()) ||
+      inv.phone.includes(search) ||
+      inv.email.toLowerCase().includes(search.toLowerCase()) ||
+      inv.role.toLowerCase().includes(search.toLowerCase());
+    const matchRole = roleFilter === 'all' || inv.sysRole === roleFilter;
+    return isBiz && isPending && matchSearch && matchRole;
   });
 
   const handleInviteSubmit = (e: React.FormEvent) => {
@@ -103,8 +129,23 @@ export const TeamDirectoryView: React.FC = () => {
     const assignedRole = roleDesignations[inviteRole] || 'Creative Specialist';
     const inviteToken = 'inv_' + Math.random().toString(36).substr(2, 9);
 
+    // Create pending agency invitation in Firestore & local state.
+    // Notice: Do NOT immediately add to active users roster!
+    // The employee will only be added to active users once they confirm & accept.
+    createAgencyInvitation({
+      bizId: activeBusiness.id,
+      agencyName: activeBusiness.name,
+      agencyLogo: activeBusiness.logo || '🎬',
+      name: computedName,
+      email: normalizedEmail,
+      phone: cleanPhone,
+      role: assignedRole,
+      sysRole: sysRole,
+      token: inviteToken,
+      invitedBy: currentUser.id
+    });
+
     if (existingEmployee) {
-      // One email is associated with one account only:
       // Send confirm join agency notification directly to the employee's notification inbox
       sendAgencyInviteNotification(existingEmployee, assignedRole, activeBusiness, inviteToken);
       addToast(
@@ -112,31 +153,9 @@ export const TeamDirectoryView: React.FC = () => {
         `An in-app confirmation notification to join ${activeBusiness.name} as ${assignedRole} was sent to ${existingEmployee.name} (${existingEmployee.email}).`,
         'success'
       );
-    } else {
-      const defaultAvatarByRole: Record<string, string> = {
-        videographer: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
-        video_editor: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&q=80',
-        photographer: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
-        graphic_designer: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=400&q=80',
-        head_manager: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
-        model: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
-        social_media_manager: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=400&q=80'
-      };
-
-      createTeamMember({
-        name: computedName,
-        email: normalizedEmail,
-        phone: cleanPhone,
-        role: sysRole,
-        accountType: 'employee',
-        designation: assignedRole,
-        avatar: defaultAvatarByRole[inviteRole] || defaultAvatarByRole.videographer,
-        availability: 'available',
-        bio: `${assignedRole} at ${activeBusiness.name}.`
-      });
     }
 
-    // Prepare App Download & Workspace Join Email and Phone Messages (keeping everything else same)
+    // Prepare App Download & Workspace Join Email and Phone Messages
     const phoneDigits = cleanPhone.replace(/\D/g, '');
     const downloadUrl = 'https://flowdeck.app/download';
     const origin = typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}` : 'https://flowdeck.app';
@@ -209,6 +228,51 @@ export const TeamDirectoryView: React.FC = () => {
         )}
       </div>
 
+      {/* Tab Switcher: Active Personnel vs Pending Confirmations */}
+      <div className="flex items-center gap-2 border-b border-slate-200/80 pb-2">
+        <button
+          onClick={() => setActiveTab('active')}
+          className={`flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all ${
+            activeTab === 'active'
+              ? 'bg-blue-600 text-white shadow-xs'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+          }`}
+        >
+          <Users className="w-4 h-4" />
+          <span>Active Personnel</span>
+          <span
+            className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
+              activeTab === 'active' ? 'bg-blue-500 text-white' : 'bg-slate-200 text-slate-700'
+            }`}
+          >
+            {filteredUsers.length}
+          </span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('pending')}
+          className={`flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all ${
+            activeTab === 'pending'
+              ? 'bg-amber-600 text-white shadow-xs'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+          }`}
+        >
+          <Clock className="w-4 h-4" />
+          <span>Pending Confirmations</span>
+          <span
+            className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
+              activeTab === 'pending'
+                ? 'bg-amber-500 text-white'
+                : pendingInvites.length > 0
+                ? 'bg-amber-100 text-amber-800'
+                : 'bg-slate-200 text-slate-700'
+            }`}
+          >
+            {pendingInvites.length}
+          </span>
+        </button>
+      </div>
+
       {/* Filter and Phone Search */}
       <div className="bg-white rounded-2xl border border-slate-200/80 p-3.5 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
         <div className="relative w-full sm:w-80">
@@ -263,86 +327,301 @@ export const TeamDirectoryView: React.FC = () => {
         </div>
       )}
 
-      {/* Team Cards Grid / Empty State */}
-      {filteredUsers.length === 0 ? (
-        <div className="bg-white rounded-3xl border border-dashed border-slate-300 p-12 text-center space-y-3">
-          <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto">
-            <Users className="w-6 h-6" />
-          </div>
-          <div>
-            <h3 className="text-base font-bold text-slate-900">No team members yet</h3>
-            <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-              Start building your creative production crew by inviting videographers, photographers, editors, and managers.
-            </p>
-          </div>
-          <button
-            onClick={() => setIsInviteOpen(true)}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition-colors"
-          >
-            <UserPlus className="w-4 h-4" />
-            <span>Invite First Creator</span>
-          </button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredUsers.map((user) => {
-          const availabilityStyles = {
-            available: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-            on_shoot: 'bg-blue-50 text-blue-700 border-blue-200',
-            busy: 'bg-amber-50 text-amber-700 border-amber-200',
-            on_leave: 'bg-slate-100 text-slate-500 border-slate-200'
-          }[user.availability];
-
-          return (
-            <div
-              key={user.id}
-              className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs hover:border-blue-300 hover:shadow-md transition-all flex flex-col justify-between space-y-4"
-            >
+      {/* TAB 1: ACTIVE PERSONNEL */}
+      {activeTab === 'active' && (
+        <>
+          {filteredUsers.length === 0 ? (
+            <div className="bg-white rounded-3xl border border-dashed border-slate-300 p-12 text-center space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto">
+                <Users className="w-6 h-6" />
+              </div>
               <div>
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-3">
-                    <img
-                      src={user.avatar}
-                      alt={user.name}
-                      className="w-12 h-12 rounded-full object-cover border border-slate-200 shadow-2xs"
-                    />
+                <h3 className="text-base font-bold text-slate-900">No active team members found</h3>
+                <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+                  Start building your creative production crew by inviting videographers, photographers, editors, and managers.
+                </p>
+              </div>
+              <button
+                onClick={() => setIsInviteOpen(true)}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition-colors"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span>Invite First Creator</span>
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredUsers.map((user) => {
+                const availabilityStyles = {
+                  available: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                  on_shoot: 'bg-blue-50 text-blue-700 border-blue-200',
+                  busy: 'bg-amber-50 text-amber-700 border-amber-200',
+                  on_leave: 'bg-slate-100 text-slate-500 border-slate-200'
+                }[user.availability];
+
+                const isOwner = currentUser.role === 'owner';
+                const canRemove = isOwner && user.id !== currentUser.id && user.role !== 'owner';
+
+                return (
+                  <div
+                    key={user.id}
+                    className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs hover:border-blue-300 hover:shadow-md transition-all flex flex-col justify-between space-y-4"
+                  >
                     <div>
-                      <h4 className="text-sm font-bold text-slate-900 leading-tight">
-                        {user.name}
-                      </h4>
-                      <p className="text-xs text-slate-500 mt-0.5">{user.designation}</p>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={user.avatar}
+                            alt={user.name}
+                            className="w-12 h-12 rounded-full object-cover border border-slate-200 shadow-2xs"
+                          />
+                          <div>
+                            <h4 className="text-sm font-bold text-slate-900 leading-tight">
+                              {user.name}
+                            </h4>
+                            <p className="text-xs text-slate-500 mt-0.5">{user.designation}</p>
+                          </div>
+                        </div>
+
+                        {canRemove && (
+                          <button
+                            onClick={() => setEmployeeToDelete(user)}
+                            title={`Remove ${user.name} from agency`}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors shrink-0"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2 mt-3 flex-wrap">
+                        <RoleBadge role={user.role} size="sm" />
+                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${availabilityStyles}`}>
+                          {user.availability.replace('_', ' ').toUpperCase()}
+                        </span>
+                      </div>
+
+                      {user.bio && (
+                        <p className="text-xs text-slate-600 mt-3 line-clamp-2 leading-relaxed">
+                          {user.bio}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="pt-3 border-t border-slate-100 space-y-1.5 text-xs text-slate-500">
+                      <div className="flex items-center gap-2">
+                        <Phone className="w-3.5 h-3.5 text-slate-400" />
+                        <span className="font-mono text-slate-700">{user.phone}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Mail className="w-3.5 h-3.5 text-slate-400" />
+                        <span className="truncate">{user.email}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-
-                <div className="flex items-center gap-2 mt-3 flex-wrap">
-                  <RoleBadge role={user.role} size="sm" />
-                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${availabilityStyles}`}>
-                    {user.availability.replace('_', ' ').toUpperCase()}
-                  </span>
-                </div>
-
-                {user.bio && (
-                  <p className="text-xs text-slate-600 mt-3 line-clamp-2 leading-relaxed">
-                    {user.bio}
-                  </p>
-                )}
-              </div>
-
-              <div className="pt-3 border-t border-slate-100 space-y-1.5 text-xs text-slate-500">
-                <div className="flex items-center gap-2">
-                  <Phone className="w-3.5 h-3.5 text-slate-400" />
-                  <span className="font-mono text-slate-700">{user.phone}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Mail className="w-3.5 h-3.5 text-slate-400" />
-                  <span className="truncate">{user.email}</span>
-                </div>
-              </div>
+                );
+              })}
             </div>
-          );
-        })}
-      </div>
+          )}
+        </>
+      )}
+
+      {/* TAB 2: PENDING CONFIRMATIONS */}
+      {activeTab === 'pending' && (
+        <>
+          {pendingInvites.length === 0 ? (
+            <div className="bg-white rounded-3xl border border-dashed border-slate-300 p-12 text-center space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto">
+                <Clock className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">No pending join confirmations</h3>
+                <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+                  Invitations awaiting confirmation by invited creators or employees will appear here until they confirm and join the agency.
+                </p>
+              </div>
+              <button
+                onClick={() => setIsInviteOpen(true)}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition-colors"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span>Invite New Creator or Employee</span>
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {pendingInvites.map((invite) => {
+                const origin = typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}` : 'https://flowdeck.app';
+                const joinUrl = `${origin}?join_biz=${encodeURIComponent(invite.bizId)}&agency_name=${encodeURIComponent(invite.agencyName)}&agency_logo=${encodeURIComponent(invite.agencyLogo || '🎬')}&role=${encodeURIComponent(invite.role)}&token=${invite.token}&email=${encodeURIComponent(invite.email)}`;
+                const downloadUrl = 'https://flowdeck.app/download';
+                const emailSubject = `Invitation to join ${invite.agencyName} on FlowDeck`;
+                const emailBody = `Hi ${invite.name},\n\nYou have been invited to join ${invite.agencyName} on FlowDeck as ${invite.role}.\n\n1. Accept your invitation and enter the agency workspace:\n${joinUrl}\n\n2. Download the FlowDeck App:\n${downloadUrl}\n\nInvited by: ${currentUser.name} (${activeBusiness.name})`;
+                const mailtoUrl = `mailto:${encodeURIComponent(invite.email)}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
+                const phoneDigits = invite.phone.replace(/\D/g, '');
+                const messageText = `Hi ${invite.name}, you've been invited by ${activeBusiness.name} to join our studio operations workspace on FlowDeck as ${invite.role}.\n\n1. Join Workspace: ${joinUrl}\n2. Download App: ${downloadUrl}`;
+                const whatsappUrl = phoneDigits ? `https://wa.me/${phoneDigits}?text=${encodeURIComponent(messageText)}` : '';
+                const smsUrl = phoneDigits ? `sms:${phoneDigits}?body=${encodeURIComponent(messageText)}` : '';
+
+                return (
+                  <div
+                    key={invite.id}
+                    className="bg-white rounded-2xl border border-amber-200/80 p-5 shadow-xs hover:border-amber-400 hover:shadow-md transition-all flex flex-col justify-between space-y-4"
+                  >
+                    <div>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-700 font-bold text-base shadow-2xs">
+                            {invite.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-bold text-slate-900 leading-tight">
+                              {invite.name}
+                            </h4>
+                            <p className="text-xs text-slate-500 mt-0.5">{invite.role}</p>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => setInviteToRevoke(invite)}
+                          title="Cancel & revoke invitation"
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors shrink-0"
+                        >
+                          <UserX className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      <div className="flex items-center gap-2 mt-3 flex-wrap">
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border bg-amber-50 text-amber-700 border-amber-200 flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          Awaiting Confirmation
+                        </span>
+                        <RoleBadge role={invite.sysRole} size="sm" />
+                      </div>
+                    </div>
+
+                    <div className="pt-3 border-t border-slate-100 space-y-1.5 text-xs text-slate-500">
+                      <div className="flex items-center gap-2">
+                        <Phone className="w-3.5 h-3.5 text-slate-400" />
+                        <span className="font-mono text-slate-700">{invite.phone}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Mail className="w-3.5 h-3.5 text-slate-400" />
+                        <span className="truncate">{invite.email}</span>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-100 flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(`Hi ${invite.name},\n\nYou're invited to join ${activeBusiness.name} on FlowDeck as ${invite.role}!\nJoin Link: ${joinUrl}\nDownload App: ${downloadUrl}`);
+                          addToast('Join Link Copied', `Direct invitation link copied for ${invite.name}.`, 'success');
+                        }}
+                        className="flex-1 flex items-center justify-center gap-1 py-1.5 px-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors"
+                      >
+                        <Copy className="w-3.5 h-3.5 text-slate-500" />
+                        <span>Copy Link</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setInviteSuccessModal({
+                            name: invite.name,
+                            email: invite.email,
+                            phone: invite.phone,
+                            role: invite.role,
+                            downloadUrl,
+                            joinUrl,
+                            mailtoUrl,
+                            whatsappUrl,
+                            smsUrl,
+                            emailSubject,
+                            emailBody,
+                            messageText
+                          });
+                        }}
+                        className="flex items-center justify-center gap-1 py-1.5 px-3 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold transition-colors"
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                        <span>Resend</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Remove Employee Confirmation Modal */}
+      {employeeToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/50 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl p-6 shadow-2xl border border-slate-200 max-w-md w-full space-y-4 animate-in fade-in zoom-in-95">
+            <div className="flex items-center gap-3 text-rose-600">
+              <div className="p-2 bg-rose-50 rounded-xl">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <h4 className="text-base font-bold text-slate-900">Remove Employee from Agency?</h4>
+            </div>
+
+            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+              Are you sure you want to remove <strong className="text-slate-900">{employeeToDelete.name}</strong> ({employeeToDelete.designation}) from <strong>{activeBusiness.name}</strong>? They will immediately lose access to this agency workspace, tasks, and shoots.
+            </p>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                onClick={() => setEmployeeToDelete(null)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  removeEmployee(employeeToDelete.id);
+                  setEmployeeToDelete(null);
+                }}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-xs transition-colors"
+              >
+                Remove Employee
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Revoke Invitation Confirmation Modal */}
+      {inviteToRevoke && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/50 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl p-6 shadow-2xl border border-slate-200 max-w-md w-full space-y-4 animate-in fade-in zoom-in-95">
+            <div className="flex items-center gap-3 text-amber-600">
+              <div className="p-2 bg-amber-50 rounded-xl">
+                <UserX className="w-6 h-6 text-rose-600" />
+              </div>
+              <h4 className="text-base font-bold text-slate-900">Cancel & Revoke Invitation?</h4>
+            </div>
+
+            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+              Cancel invitation for <strong className="text-slate-900">{inviteToRevoke.name}</strong> ({inviteToRevoke.email})? Their join link will be invalidated.
+            </p>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                onClick={() => setInviteToRevoke(null)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+              >
+                Keep Invitation
+              </button>
+              <button
+                onClick={() => {
+                  revokeAgencyInvitation(inviteToRevoke.id);
+                  setInviteToRevoke(null);
+                }}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-xs transition-colors"
+              >
+                Revoke Invitation
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Invite Member Modal */}
@@ -398,48 +677,19 @@ export const TeamDirectoryView: React.FC = () => {
                   }}
                   className="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-hidden focus:border-blue-600"
                 />
-                {inviteEmail.trim() && users.find(u => u.email.trim().toLowerCase() === inviteEmail.trim().toLowerCase()) && (
-                  <div className="mt-2 p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 flex items-start gap-2 animate-in fade-in">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-1">
-                        <span className="font-bold text-emerald-950">
-                          Existing Account Found
-                        </span>
-                        <span className="text-[9px] font-bold uppercase tracking-wider bg-emerald-200/80 text-emerald-900 px-1.5 py-0.5 rounded">
-                          1 Account / Email
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-emerald-800 mt-0.5">
-                        {users.find(u => u.email.trim().toLowerCase() === inviteEmail.trim().toLowerCase())?.name} • {users.find(u => u.email.trim().toLowerCase() === inviteEmail.trim().toLowerCase())?.phone}
-                      </p>
-                      <p className="text-[10px] text-emerald-700 mt-1">
-                        Submitting will send a <strong>"Confirm Join {activeBusiness.name}"</strong> invitation notification directly to their account inbox while keeping email & message invite delivery ready.
-                      </p>
-                    </div>
-                  </div>
-                )}
               </div>
 
               <div>
                 <label className="block text-[10px] font-bold uppercase text-slate-600 mb-1">
                   Phone (Auto-prefixed with +91)
                 </label>
-                <div className="relative flex items-center">
-                  <span className="absolute left-3 text-xs font-semibold text-slate-400 select-none font-mono">
-                    +91
-                  </span>
-                  <input
-                    type="tel"
-                    placeholder="+91 98765 43210"
-                    value={invitePhone.startsWith('+91') ? invitePhone.replace(/^\+91\s*/, '') : invitePhone}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setInvitePhone(val ? `+91 ${val}` : '');
-                    }}
-                    className="w-full text-xs sm:text-sm pl-11 pr-3 py-2.5 rounded-xl border border-slate-200 focus:outline-hidden focus:border-blue-600 font-mono"
-                  />
-                </div>
+                <input
+                  type="tel"
+                  placeholder="+91 98765 43210"
+                  value={invitePhone}
+                  onChange={(e) => setInvitePhone(e.target.value)}
+                  className="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-hidden focus:border-blue-600"
+                />
               </div>
 
               <div>
@@ -449,43 +699,42 @@ export const TeamDirectoryView: React.FC = () => {
                 <select
                   value={inviteRole}
                   onChange={(e) => setInviteRole(e.target.value)}
-                  className="w-full text-xs sm:text-sm px-3 py-2.5 rounded-xl border border-slate-200 bg-white"
+                  className="w-full text-xs sm:text-sm px-3 py-2.5 rounded-xl border border-slate-200 focus:outline-hidden focus:border-blue-600 bg-white"
                 >
                   <option value="videographer">Videographer / DP</option>
-                  <option value="video_editor">Video Editor / Post-Production</option>
                   <option value="photographer">Photographer</option>
-                  <option value="graphic_designer">Graphic & Motion Designer</option>
+                  <option value="video_editor">Video Editor</option>
+                  <option value="graphic_designer">Graphic Designer</option>
+                  <option value="head_manager">Head Manager / Supervisor</option>
                   <option value="model">On-Camera Talent / Model</option>
                   <option value="social_media_manager">Social Media Manager</option>
-                  <option value="head_manager">Production Supervisor / Manager</option>
                 </select>
               </div>
 
-              {/* Onboarding info callout */}
-              <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-xl text-xs text-blue-900 space-y-1">
-                <p className="font-bold flex items-center gap-1.5 text-blue-950">
-                  <Download className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                  <span>Automatic Onboarding & App Download</span>
-                </p>
-                <p className="text-[11px] text-blue-800 leading-relaxed">
-                  Submitting generates an official email invitation with agency join credentials and links to download the FlowDeck app.
+              <div className="p-3 bg-amber-50/80 border border-amber-200/80 rounded-xl space-y-1">
+                <div className="flex items-center gap-1.5 text-amber-800 font-bold text-xs">
+                  <Clock className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Pending Confirmation Workflow</span>
+                </div>
+                <p className="text-[11px] text-amber-700 leading-relaxed">
+                  Submitting will create an invitation with links to join {activeBusiness.name} and download the FlowDeck app. The creator will only be added to your active personnel roster once they confirm and accept.
                 </p>
               </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setIsInviteOpen(false)}
-                  className="px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-xl shadow-xs flex items-center gap-1.5 transition-colors"
+                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition-colors flex items-center gap-1.5"
                 >
                   <Send className="w-3.5 h-3.5" />
-                  <span>Send Email & Add to Agency</span>
+                  <span>Send Invitation</span>
                 </button>
               </div>
             </form>
@@ -493,7 +742,7 @@ export const TeamDirectoryView: React.FC = () => {
         </div>
       )}
 
-      {/* Invite Prepared & App Download Modal */}
+      {/* Success Invitation & Download Delivery Modal */}
       {inviteSuccessModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/50 backdrop-blur-xs overflow-y-auto">
           <div className="bg-white rounded-3xl p-5 sm:p-6 shadow-2xl border border-slate-200 max-w-lg w-full space-y-4 animate-in fade-in zoom-in-95">
@@ -501,15 +750,15 @@ export const TeamDirectoryView: React.FC = () => {
             {/* Header */}
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
-                  <CheckCircle2 className="w-5 h-5" />
+                <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold">
+                  <Clock className="w-5 h-5" />
                 </div>
                 <div>
                   <h4 className="text-sm sm:text-base font-bold text-slate-900">
-                    Invitation Sent & Added to Agency!
+                    Invitation Created — Awaiting Confirmation
                   </h4>
                   <p className="text-[11px] text-slate-500">
-                    Personnel profile created for {activeBusiness.name}
+                    Official invitation generated for {activeBusiness.name}
                   </p>
                 </div>
               </div>
@@ -524,7 +773,7 @@ export const TeamDirectoryView: React.FC = () => {
             {/* Added Personnel Card */}
             <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-sm shadow-2xs">
+                <div className="w-10 h-10 rounded-full bg-amber-600 text-white font-bold flex items-center justify-center text-sm shadow-2xs">
                   {inviteSuccessModal.name.charAt(0)}
                 </div>
                 <div>
@@ -537,8 +786,8 @@ export const TeamDirectoryView: React.FC = () => {
                   </div>
                 </div>
               </div>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-                ACTIVE PERSONNEL
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                PENDING CONFIRMATION
               </span>
             </div>
 
@@ -631,4 +880,3 @@ export const TeamDirectoryView: React.FC = () => {
     </div>
   );
 };
-
