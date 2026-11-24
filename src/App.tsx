@@ -63,7 +63,6 @@ const AppContent: React.FC = () => {
       {renderView()}
       <CreateProjectModal />
       <CallSheetModal />
-      <FirebaseModal />
     </AppShell>
   );
 };

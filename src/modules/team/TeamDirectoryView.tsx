@@ -196,13 +196,21 @@ export const TeamDirectoryView: React.FC = () => {
                 <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
                   Phone (Optional for SMS call sheets)
                 </label>
-                <input
-                  type="tel"
-                  placeholder="+1 (555) 000-0000"
-                  value={invitePhone}
-                  onChange={(e) => setInvitePhone(e.target.value)}
-                  className="w-full text-xs sm:text-sm px-3 py-2 rounded-xl border border-slate-200"
-                />
+                <div className="relative flex items-center">
+                  <span className="absolute left-3 text-xs font-semibold text-slate-500 select-none">
+                    +91
+                  </span>
+                  <input
+                    type="tel"
+                    placeholder="+91 98765 43210"
+                    value={invitePhone.startsWith('+91') ? invitePhone.replace(/^\+91\s*/, '') : invitePhone}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setInvitePhone(val ? `+91 ${val}` : '');
+                    }}
+                    className="w-full text-xs sm:text-sm pl-11 pr-3 py-2 rounded-xl border border-slate-200 focus:outline-hidden focus:border-blue-600 font-mono"
+                  />
+                </div>
               </div>
 
               <div>

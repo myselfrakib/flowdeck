@@ -144,6 +144,7 @@ interface AppContextType {
   rescheduleShoot: (shootId: string, newStartAt: string, newEndAt: string, reason: string) => void;
   createShootEvent: (shoot: Omit<ShootEvent, 'id' | 'createdAt'>) => void;
   createClient: (client: Omit<ClientProfile, 'id' | 'businessId' | 'portalToken' | 'totalProjects'>) => void;
+  updateUserAvatar: (newAvatarUrl: string) => void;
 }
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -185,7 +186,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return 'overview';
   });
 
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>('proj_aura_radiance');
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [activeProjectTab, setActiveProjectTab] = useState<ProjectTabType>('overview');
 
   // Domain states
@@ -230,7 +231,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id: 'user_' + Math.random().toString(36).substr(2, 9),
       name: email.split('@')[0],
       email,
-      phone: '+1 (555) 234-5678',
+      phone: '+91 98765 43210',
       avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
       role: 'owner',
       accountType: 'business_owner',
@@ -282,7 +283,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id: 'user_' + Math.random().toString(36).substr(2, 9),
       name: data.name,
       email: data.email,
-      phone: '+1 (555) 789-0123',
+      phone: '+91 98765 43210',
       avatar: defaultAvatars[data.role] || defaultAvatars.owner,
       role: data.role,
       accountType: data.role === 'owner' ? 'business_owner' : data.role === 'client' ? 'client' : 'employee',
@@ -545,7 +546,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     dueAt: string
   ) => {
     const room = rooms.find((r) => r.id === roomId);
-    const projectId = room ? room.projectId : selectedProjectId || 'proj_aura_radiance';
+    const projectId = room ? room.projectId : selectedProjectId || (projects[0]?.id || 'proj_general');
 
     const newTask: Task = {
       id: 'task_' + Math.random().toString(36).substr(2, 9),
@@ -903,6 +904,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     addToast('Client Onboarded', `"${newClient.brandName}" added to client directory.`, 'success');
   };
 
+  const updateUserAvatar = (newAvatarUrl: string) => {
+    if (!newAvatarUrl.trim()) return;
+    const updatedUser = { ...currentUser, avatar: newAvatarUrl.trim() };
+    setCurrentUser(updatedUser);
+    setUsers((prev) => prev.map((u) => u.id === currentUser.id ? updatedUser : u));
+    try {
+      const saved = localStorage.getItem('flowdeck_session');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        localStorage.setItem('flowdeck_session', JSON.stringify({ ...parsed, user: updatedUser }));
+      }
+    } catch {}
+    addToast('Profile Photo Updated', 'Your profile picture has been updated.', 'success');
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -964,7 +980,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         applyForLeave,
         rescheduleShoot,
         createShootEvent,
-        createClient
+        createClient,
+        updateUserAvatar
       }}
     >
       {children}

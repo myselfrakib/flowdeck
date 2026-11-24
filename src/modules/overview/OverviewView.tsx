@@ -95,7 +95,7 @@ export const OverviewView: React.FC = () => {
         <StatCard
           title="Active Projects"
           value={activeProjects.length}
-          subtitle="Across 3 client brands"
+          subtitle={activeProjects.length === 1 ? '1 live campaign' : `${activeProjects.length} live campaigns`}
           icon={FolderKanban}
           colorScheme="blue"
           onClick={() => setCurrentView('projects')}
@@ -103,7 +103,7 @@ export const OverviewView: React.FC = () => {
         <StatCard
           title="Upcoming Shoots"
           value={upcomingShoots.length}
-          subtitle="Next: Pier 59 Studios"
+          subtitle={upcomingShoots.length > 0 ? `${upcomingShoots.length} scheduled` : 'No shoots scheduled'}
           icon={CalendarDays}
           colorScheme="emerald"
           onClick={() => setCurrentView('calendar')}
@@ -111,12 +111,18 @@ export const OverviewView: React.FC = () => {
         <StatCard
           title="Pending Reviews"
           value={pendingApprovals.length}
-          subtitle="Aura Radiance v2.0"
+          subtitle={pendingApprovals.length > 0 ? `${pendingApprovals.length} cuts in review` : 'All cuts approved'}
           icon={Clock}
           colorScheme="amber"
-          trend="Action Needed"
-          trendType="negative"
-          onClick={() => openProject('proj_aura_radiance', 'approvals')}
+          trend={pendingApprovals.length > 0 ? "Action Needed" : undefined}
+          trendType={pendingApprovals.length > 0 ? "negative" : undefined}
+          onClick={() => {
+            if (projects.length > 0) {
+              openProject(projects[0].id, 'approvals');
+            } else {
+              setCurrentView('projects');
+            }
+          }}
         />
         <StatCard
           title="My Open Tasks"
@@ -294,24 +300,26 @@ export const OverviewView: React.FC = () => {
           )}
 
           {/* Quick Review Shortcut */}
-          <div className="bg-gradient-to-br from-blue-50 to-sky-50 rounded-2xl border border-blue-200/80 p-4 sm:p-5 shadow-xs">
-            <div className="flex items-center gap-2 mb-2 text-blue-900">
-              <Play className="w-4 h-4 text-blue-600 fill-blue-600" />
-              <h3 className="text-sm font-bold">
-                Review Player v2.0
-              </h3>
+          {pendingApprovals.length > 0 && projects.length > 0 && (
+            <div className="bg-gradient-to-br from-blue-50 to-sky-50 rounded-2xl border border-blue-200/80 p-4 sm:p-5 shadow-xs">
+              <div className="flex items-center gap-2 mb-2 text-blue-900">
+                <Play className="w-4 h-4 text-blue-600 fill-blue-600" />
+                <h3 className="text-sm font-bold">
+                  Review Player
+                </h3>
+              </div>
+              <p className="text-xs text-slate-600 mb-3 leading-relaxed">
+                Production cut is awaiting client approval. Click to open the timestamp review player.
+              </p>
+              <button
+                onClick={() => openProject(projects[0].id, 'approvals')}
+                className="w-full py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition-colors flex items-center justify-center gap-2"
+              >
+                <span>Launch Review Player</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
             </div>
-            <p className="text-xs text-slate-600 mb-3 leading-relaxed">
-              Aura Radiance cut v2.0 is awaiting client approval. Click to open the timestamp review player.
-            </p>
-            <button
-              onClick={() => openProject('proj_aura_radiance', 'approvals')}
-              className="w-full py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition-colors flex items-center justify-center gap-2"
-            >
-              <span>Launch Review Player</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
+          )}
 
           {/* Quick Start New Campaign */}
           <div className="p-4 rounded-2xl border border-dashed border-slate-300 text-center bg-white">

@@ -142,69 +142,6 @@ export const SettingsView: React.FC = () => {
         </form>
       </div>
 
-      {/* Firebase Cloud Services Integration Card */}
-      <div className="bg-gradient-to-br from-white to-orange-50/40 rounded-3xl border border-orange-200/80 p-5 sm:p-6 shadow-xs space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-orange-100">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-600 text-white flex items-center justify-center font-bold shadow-md shadow-orange-500/20 shrink-0">
-              <Flame className="w-6 h-6 fill-white" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm sm:text-base font-bold text-slate-900">
-                  Firebase Cloud Services Connected
-                </h3>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold border border-emerald-200">
-                  Active (rakib-18024)
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Authentication, Cloud Firestore, Realtime DB, Cloud Storage, and Google Analytics
-              </p>
-            </div>
-          </div>
-
-          <button
-            onClick={() => setIsAuthModalOpen(true)}
-            className="self-start sm:self-auto flex items-center gap-1.5 px-4 py-2 rounded-xl bg-orange-600 hover:bg-orange-700 active:bg-orange-800 text-white font-bold text-xs shadow-xs transition-colors"
-          >
-            <Flame className="w-3.5 h-3.5 fill-white" />
-            <span>Open Firebase Hub</span>
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
-          <div className="p-3 bg-white rounded-xl border border-orange-100/80 space-y-1">
-            <span className="text-[10px] font-bold uppercase text-slate-400">Auth State</span>
-            <p className="font-bold text-slate-800 truncate">
-              {firebaseUser ? (firebaseUser.displayName || firebaseUser.email) : 'Ready (Persona Mode)'}
-            </p>
-          </div>
-
-          <div className="p-3 bg-white rounded-xl border border-orange-100/80 space-y-1">
-            <span className="text-[10px] font-bold uppercase text-slate-400">Cloud Firestore</span>
-            <p className="font-bold text-emerald-700 flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-emerald-500" />
-              <span>Multi-Tenant DB</span>
-            </p>
-          </div>
-
-          <div className="p-3 bg-white rounded-xl border border-orange-100/80 space-y-1">
-            <span className="text-[10px] font-bold uppercase text-slate-400">Cloud Storage</span>
-            <p className="font-bold text-slate-800 truncate">
-              rakib-18024.firebasestorage.app
-            </p>
-          </div>
-
-          <div className="p-3 bg-white rounded-xl border border-orange-100/80 space-y-1">
-            <span className="text-[10px] font-bold uppercase text-slate-400">Realtime Database</span>
-            <p className="font-bold text-slate-800 truncate">
-              rakib-18024-default-rtdb
-            </p>
-          </div>
-        </div>
-      </div>
-
       {/* Official RBAC Matrix from Blueprint Page 20 */}
       <div className="bg-white rounded-3xl border border-slate-200/80 p-5 sm:p-6 shadow-xs space-y-4">
         <div className="flex items-center justify-between pb-2 border-b border-slate-100">

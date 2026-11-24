@@ -26,8 +26,8 @@ export const ClientPortalView: React.FC = () => {
     currentUser 
   } = useApp();
 
-  const project = projects.find(p => p.id === 'proj_aura_radiance') || projects[0];
-  const versions = editVersions.filter(v => v.projectId === project.id);
+  const project = projects[0];
+  const versions = project ? editVersions.filter(v => v.projectId === project.id) : [];
   const activeVersion = versions[versions.length - 1] || versions[0];
 
   const [isPlaying, setIsPlaying] = useState(false);
@@ -69,14 +69,14 @@ export const ClientPortalView: React.FC = () => {
               <ShieldCheck className="w-4 h-4" />
             </span>
             <span className="text-xs font-bold uppercase tracking-wider text-emerald-700">
-              Client Approval Portal • Zero-Gossip Zone
+              Client Approval Portal • Secure Review
             </span>
           </div>
           <h1 className="text-lg sm:text-xl font-black text-slate-900 mt-1">
-            {project.title}
+            {project?.title || 'No Active Project in Review'}
           </h1>
           <p className="text-xs text-slate-500">
-            Aura Botanicals • Reviewed by {signerName}
+            {project?.clientName || 'FlowDeck Workspace'} • Reviewed by {signerName}
           </p>
         </div>
 
