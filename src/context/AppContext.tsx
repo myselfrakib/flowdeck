@@ -71,6 +71,15 @@ export interface ToastMessage {
   type?: 'success' | 'info' | 'warning' | 'danger';
 }
 
+export interface PendingAgencyInvite {
+  bizId: string;
+  agencyName: string;
+  agencyLogo?: string;
+  role: string;
+  token: string;
+  email?: string;
+}
+
 interface AppContextType {
   // Business & Persona
   activeBusiness: Business;
@@ -122,6 +131,12 @@ interface AppContextType {
   setIsSearchOpen: (open: boolean) => void;
   isAuthModalOpen: boolean;
   setIsAuthModalOpen: (open: boolean) => void;
+  pendingInvite: PendingAgencyInvite | null;
+  setPendingInvite: (invite: PendingAgencyInvite | null) => void;
+  isInviteModalOpen: boolean;
+  setIsInviteModalOpen: (open: boolean) => void;
+  acceptAgencyInvite: (invite?: PendingAgencyInvite) => void;
+  rejectAgencyInvite: (invite?: PendingAgencyInvite) => void;
   firebaseUser: FirebaseUser | null;
   activeCallSheetShootId: string | null;
   setActiveCallSheetShootId: (id: string | null) => void;
@@ -448,6 +463,85 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [activeCallSheetShootId, setActiveCallSheetShootId] = useState<string | null>(null);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  // Pending Agency Invite
+  const [pendingInvite, setPendingInvite] = useState<PendingAgencyInvite | null>(() => {
+    try {
+      const saved = localStorage.getItem('flowdeck_pending_invite');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+
+  // Check URL invitation params & sync with pendingInvite state
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const joinBiz = params.get('join_biz') || params.get('biz');
+      const agencyName = params.get('agency_name') || params.get('agency');
+      const role = params.get('role');
+      const token = params.get('token');
+      const email = params.get('email');
+      const logo = params.get('agency_logo');
+
+      let currentInvite = pendingInvite;
+
+      if (joinBiz && agencyName) {
+        currentInvite = {
+          bizId: joinBiz,
+          agencyName: decodeURIComponent(agencyName),
+          agencyLogo: logo ? decodeURIComponent(logo) : '🎬',
+          role: role ? decodeURIComponent(role) : 'Creative Specialist',
+          token: token || '',
+          email: email ? decodeURIComponent(email) : undefined
+        };
+        localStorage.setItem('flowdeck_pending_invite', JSON.stringify(currentInvite));
+        setPendingInvite(currentInvite);
+      } else if (!currentInvite) {
+        const saved = localStorage.getItem('flowdeck_pending_invite');
+        if (saved) {
+          currentInvite = JSON.parse(saved);
+          setPendingInvite(currentInvite);
+        }
+      }
+
+      // If user is logged in and there is an invitation pending
+      if (currentInvite && isAuthenticated && currentUser) {
+        setIsInviteModalOpen(true);
+
+        // Send Toast notification
+        addToast(
+          'Agency Invitation',
+          `Join "${currentInvite.agencyName}" as "${currentInvite.role}"? Confirm or Reject below.`,
+          'info'
+        );
+
+        // Add to Notifications bell
+        const notifId = 'notif_invite_' + (currentInvite.token || currentInvite.bizId);
+        setNotifications((prev) => {
+          if (prev.some((n) => n.id === notifId)) return prev;
+          return [
+            {
+              id: notifId,
+              recipientId: currentUser.id,
+              title: `Invitation: ${currentInvite!.agencyName}`,
+              message: `Join "${currentInvite!.agencyName}" as "${currentInvite!.role}". Confirm or Reject invitation.`,
+              type: 'mention',
+              createdAt: new Date().toISOString(),
+              read: false
+            },
+            ...prev
+          ];
+        });
+      }
+    } catch (e) {
+      console.warn('Error parsing agency invite URL:', e);
+    }
+  }, [isAuthenticated, currentUser?.id]);
 
   // Listen to live Firebase Auth state
   useEffect(() => {
@@ -1226,6 +1320,143 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return newMember;
   };
 
+  const acceptAgencyInvite = (customInvite?: PendingAgencyInvite) => {
+    const invite = customInvite || pendingInvite;
+    if (!invite) return;
+
+    // 1. Ensure business exists
+    const existingBiz = businesses.find(b => b.id === invite.bizId);
+    const targetBiz: Business = existingBiz || {
+      id: invite.bizId,
+      name: invite.agencyName,
+      tagline: 'Commercial Video & Creative Production',
+      category: 'Commercial Video & Creative Production',
+      logo: invite.agencyLogo || '🎬',
+      ownerId: 'owner_agency',
+      timezone: 'Asia/Kolkata (IST)',
+      workingDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+      storageProvider: 'firebase',
+      createdAt: new Date().toISOString()
+    };
+
+    if (!existingBiz) {
+      setBusinesses(prev => [targetBiz, ...prev.filter(b => b.id !== targetBiz.id)]);
+    }
+    setActiveBusiness(targetBiz);
+
+    // 2. Update currentUser designation & business association
+    const updatedUser: User = {
+      ...currentUser,
+      designation: invite.role,
+      department: invite.role.toLowerCase().includes('editor') ? 'Post-Production' :
+                  invite.role.toLowerCase().includes('photo') ? 'Photo Unit' :
+                  invite.role.toLowerCase().includes('video') ? 'Camera Unit' :
+                  invite.role.toLowerCase().includes('design') ? 'Design & Branding' :
+                  invite.role.toLowerCase().includes('manager') ? 'Management' : 'Operations',
+      accountType: currentUser.role === 'owner' ? 'business_owner' : 'employee'
+    };
+
+    setCurrentUser(updatedUser);
+    setUsers(prev => {
+      const idx = prev.findIndex(u => u.id === updatedUser.id);
+      if (idx !== -1) {
+        const copy = [...prev];
+        copy[idx] = updatedUser;
+        return copy;
+      }
+      return [updatedUser, ...prev];
+    });
+
+    try {
+      const session = localStorage.getItem('flowdeck_session');
+      if (session) {
+        const parsed = JSON.parse(session);
+        parsed.user = updatedUser;
+        localStorage.setItem('flowdeck_session', JSON.stringify(parsed));
+      }
+      localStorage.removeItem('flowdeck_pending_invite');
+      if (typeof window !== 'undefined' && window.history && window.location.search) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    } catch {}
+
+    // 3. Activity Log
+    if (projects.length > 0) {
+      setActivityLogs(prev => [
+        {
+          id: 'act_' + Math.random().toString(36).substr(2, 9),
+          projectId: projects[0].id,
+          actorId: updatedUser.id,
+          action: 'joined agency workspace',
+          target: `${invite.agencyName} as ${invite.role}`,
+          timestamp: 'Just now',
+          category: 'project'
+        },
+        ...prev
+      ]);
+    }
+
+    // 4. System Notification
+    setNotifications(prev => [
+      {
+        id: 'notif_joined_' + Math.random().toString(36).substr(2, 9),
+        recipientId: updatedUser.id,
+        title: `Welcome to ${invite.agencyName}!`,
+        message: `You are officially onboarded to ${invite.agencyName} as ${invite.role}.`,
+        type: 'approved',
+        createdAt: new Date().toISOString(),
+        read: false
+      },
+      ...prev
+    ]);
+
+    // 5. Success Toast
+    addToast(
+      'Joined Agency! 🎉',
+      `You have successfully joined ${invite.agencyName} as ${invite.role}.`,
+      'success'
+    );
+
+    setPendingInvite(null);
+    setIsInviteModalOpen(false);
+  };
+
+  const rejectAgencyInvite = (customInvite?: PendingAgencyInvite) => {
+    const invite = customInvite || pendingInvite;
+    const agencyName = invite?.agencyName || 'Agency';
+
+    addToast(
+      'Invitation Declined',
+      `You declined the invitation to join ${agencyName}.`,
+      'warning'
+    );
+
+    if (currentUser) {
+      setNotifications(prev => [
+        {
+          id: 'notif_declined_' + Math.random().toString(36).substr(2, 9),
+          recipientId: currentUser.id,
+          title: `Declined: ${agencyName} Invitation`,
+          message: `You declined the invitation to join ${agencyName}.`,
+          type: 'mention',
+          createdAt: new Date().toISOString(),
+          read: true
+        },
+        ...prev
+      ]);
+    }
+
+    try {
+      localStorage.removeItem('flowdeck_pending_invite');
+      if (typeof window !== 'undefined' && window.history && window.location.search) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    } catch {}
+
+    setPendingInvite(null);
+    setIsInviteModalOpen(false);
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -1263,6 +1494,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setIsSearchOpen,
         isAuthModalOpen,
         setIsAuthModalOpen,
+        pendingInvite,
+        setPendingInvite,
+        isInviteModalOpen,
+        setIsInviteModalOpen,
+        acceptAgencyInvite,
+        rejectAgencyInvite,
         firebaseUser,
         activeCallSheetShootId,
         setActiveCallSheetShootId,

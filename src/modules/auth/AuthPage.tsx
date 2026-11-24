@@ -101,7 +101,7 @@ const ROLE_OPTIONS: RoleOption[] = [
 ];
 
 export const AuthPage: React.FC = () => {
-  const { login, signup, addToast } = useApp();
+  const { login, signup, addToast, pendingInvite } = useApp();
 
   const [mode, setMode] = useState<'login' | 'signup'>('signup');
   const [loading, setLoading] = useState(false);
@@ -109,10 +109,24 @@ export const AuthPage: React.FC = () => {
 
   // Form Fields
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(() => pendingInvite?.email || '');
   const [password, setPassword] = useState('');
   const [selectedRole, setSelectedRole] = useState<UserRole>('owner');
   const [agencyName, setAgencyName] = useState('');
+
+  // If there's an agency invite, default to employee role if possible
+  React.useEffect(() => {
+    if (pendingInvite?.role) {
+      const rLower = pendingInvite.role.toLowerCase();
+      if (rLower.includes('video_editor') || rLower.includes('editor')) setSelectedRole('video_editor');
+      else if (rLower.includes('photographer') || rLower.includes('photo')) setSelectedRole('photographer');
+      else if (rLower.includes('videographer') || rLower.includes('dp')) setSelectedRole('videographer');
+      else if (rLower.includes('designer') || rLower.includes('graphic')) setSelectedRole('graphic_designer');
+      else if (rLower.includes('manager')) setSelectedRole('head_manager');
+      else if (rLower.includes('model') || rLower.includes('talent')) setSelectedRole('model');
+      else setSelectedRole('videographer');
+    }
+  }, [pendingInvite]);
 
   const selectedRoleMeta = ROLE_OPTIONS.find(r => r.role === selectedRole) || ROLE_OPTIONS[0];
 
@@ -170,6 +184,26 @@ export const AuthPage: React.FC = () => {
             </p>
           </div>
         </div>
+
+        {/* Pending Agency Invite Banner */}
+        {pendingInvite && (
+          <div className="p-3.5 bg-blue-50 border border-blue-200 rounded-2xl flex items-center gap-3 text-left animate-in fade-in">
+            <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center text-lg shrink-0 shadow-2xs">
+              {pendingInvite.agencyLogo || '🎬'}
+            </div>
+            <div className="min-w-0 flex-1">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 block">
+                Official Agency Invitation
+              </span>
+              <p className="text-xs font-bold text-slate-900 leading-tight">
+                Join {pendingInvite.agencyName}
+              </p>
+              <p className="text-[11px] text-slate-600 mt-0.5">
+                Profession: <strong className="text-blue-700 font-bold">{pendingInvite.role}</strong>
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Mode Toggle */}
         <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-xl text-xs font-semibold">

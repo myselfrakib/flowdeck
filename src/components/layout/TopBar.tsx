@@ -36,7 +36,11 @@ export const TopBar: React.FC = () => {
     setIsAuthModalOpen,
     firebaseUser,
     logout,
-    updateUserAvatar
+    updateUserAvatar,
+    pendingInvite,
+    setIsInviteModalOpen,
+    acceptAgencyInvite,
+    rejectAgencyInvite
   } = useApp();
 
   const [isBizMenuOpen, setIsBizMenuOpen] = useState(false);
@@ -252,21 +256,58 @@ export const TopBar: React.FC = () => {
                   <span className="text-[11px] text-blue-600 font-medium">Clear all</span>
                 </div>
                 <div className="max-h-80 overflow-y-auto divide-y divide-slate-100">
-                  {notifications.map((notif) => (
-                    <div
-                      key={notif.id}
-                      onClick={() => markNotificationAsRead(notif.id)}
-                      className={`p-3 text-left hover:bg-slate-50 cursor-pointer transition-colors ${
-                        !notif.read ? 'bg-blue-50/40' : ''
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-slate-800">{notif.title}</span>
-                        <span className="text-[10px] text-slate-400">{notif.createdAt}</span>
+                  {notifications.map((notif) => {
+                    const isInviteNotif = notif.title.toLowerCase().includes('invitation') && pendingInvite;
+                    return (
+                      <div
+                        key={notif.id}
+                        onClick={() => {
+                          markNotificationAsRead(notif.id);
+                          if (isInviteNotif) {
+                            setIsInviteModalOpen(true);
+                            setIsNotifOpen(false);
+                          }
+                        }}
+                        className={`p-3 text-left hover:bg-slate-50 cursor-pointer transition-colors ${
+                          !notif.read ? 'bg-blue-50/40' : ''
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-semibold text-slate-800">{notif.title}</span>
+                          <span className="text-[10px] text-slate-400">
+                            {notif.createdAt && notif.createdAt.includes('T') ? new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : notif.createdAt || 'Just now'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-600 mt-1 line-clamp-2">{notif.message}</p>
+                        {isInviteNotif && (
+                          <div className="mt-2.5 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                markNotificationAsRead(notif.id);
+                                rejectAgencyInvite(pendingInvite);
+                                setIsNotifOpen(false);
+                              }}
+                              className="px-2.5 py-1 text-[11px] font-bold rounded-lg border border-slate-200 hover:bg-rose-50 hover:text-rose-700 text-slate-600 transition-colors"
+                            >
+                              Reject
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                markNotificationAsRead(notif.id);
+                                acceptAgencyInvite(pendingInvite);
+                                setIsNotifOpen(false);
+                              }}
+                              className="px-3 py-1 text-[11px] font-bold rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-2xs transition-colors"
+                            >
+                              Confirm
+                            </button>
+                          </div>
+                        )}
                       </div>
-                      <p className="text-xs text-slate-600 mt-1 line-clamp-2">{notif.message}</p>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}

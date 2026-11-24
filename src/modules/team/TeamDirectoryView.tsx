@@ -116,11 +116,13 @@ export const TeamDirectoryView: React.FC = () => {
     const phoneDigits = cleanPhone.replace(/\D/g, '');
     const inviteToken = 'inv_' + Math.random().toString(36).substr(2, 9);
     const downloadUrl = 'https://flowdeck.app/download';
-    const joinUrl = `https://flowdeck.app/join?biz=${activeBusiness.id}&token=${inviteToken}&email=${encodeURIComponent(inviteEmail.trim())}`;
+    const origin = typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}` : 'https://flowdeck.app';
+    const assignedRole = roleDesignations[inviteRole] || 'Creative Specialist';
+    const joinUrl = `${origin}?join_biz=${encodeURIComponent(activeBusiness.id)}&agency_name=${encodeURIComponent(activeBusiness.name)}&agency_logo=${encodeURIComponent(activeBusiness.logo || '🎬')}&role=${encodeURIComponent(assignedRole)}&token=${inviteToken}&email=${encodeURIComponent(inviteEmail.trim())}`;
     const emailSubject = `Invitation to join ${activeBusiness.name} on FlowDeck`;
-    const emailBody = `Hi ${computedName},\n\nYou have been invited to join ${activeBusiness.name} on FlowDeck as ${roleDesignations[inviteRole] || 'Creative Specialist'}.\n\n1. Download the FlowDeck App (iOS, Android, or Desktop):\n${downloadUrl}\n\n2. Accept your invite and enter the agency workspace:\n${joinUrl}\n\nInvited by: ${currentUser.name} (${activeBusiness.name})`;
+    const emailBody = `Hi ${computedName},\n\nYou have been invited to join ${activeBusiness.name} on FlowDeck as ${assignedRole}.\n\n1. Accept your invitation and enter the agency workspace:\n${joinUrl}\n\n2. Download the FlowDeck App (iOS, Android, or Desktop):\n${downloadUrl}\n\nInvited by: ${currentUser.name} (${activeBusiness.name})`;
     const mailtoUrl = `mailto:${encodeURIComponent(inviteEmail.trim())}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
-    const messageText = `Hi ${computedName}, you've been invited by ${activeBusiness.name} to join our studio operations workspace on FlowDeck as ${roleDesignations[inviteRole] || 'Creative Specialist'}.\n\n1. Download App: ${downloadUrl}\n2. Join Workspace: ${joinUrl}`;
+    const messageText = `Hi ${computedName}, you've been invited by ${activeBusiness.name} to join our studio operations workspace on FlowDeck as ${assignedRole}.\n\n1. Join Workspace: ${joinUrl}\n2. Download App: ${downloadUrl}`;
     const whatsappUrl = phoneDigits ? `https://wa.me/${phoneDigits}?text=${encodeURIComponent(messageText)}` : '';
     const smsUrl = phoneDigits ? `sms:${phoneDigits}?body=${encodeURIComponent(messageText)}` : '';
 
@@ -129,7 +131,7 @@ export const TeamDirectoryView: React.FC = () => {
       name: computedName,
       email: inviteEmail.trim(),
       phone: cleanPhone,
-      role: roleDesignations[inviteRole] || 'Creative Personnel',
+      role: assignedRole,
       downloadUrl,
       joinUrl,
       mailtoUrl,
@@ -148,10 +150,10 @@ export const TeamDirectoryView: React.FC = () => {
 
   const handleCopyInviteLink = () => {
     if (!inviteSuccessModal) return;
-    const textToCopy = `Hi ${inviteSuccessModal.name},\n\nJoin ${activeBusiness.name} on FlowDeck!\nDownload App: ${inviteSuccessModal.downloadUrl}\nDirect Join Link: ${inviteSuccessModal.joinUrl}`;
+    const textToCopy = `Hi ${inviteSuccessModal.name},\n\nYou're invited to join ${activeBusiness.name} on FlowDeck as ${inviteSuccessModal.role}!\nDirect Join Link: ${inviteSuccessModal.joinUrl}\nDownload FlowDeck App: ${inviteSuccessModal.downloadUrl}`;
     navigator.clipboard.writeText(textToCopy);
     setCopiedLink(true);
-    addToast('Invite Link Copied', 'Download link and workspace token copied to clipboard.', 'success');
+    addToast('Invite Link Copied', `Direct join link copied for ${inviteSuccessModal.name}.`, 'success');
     setTimeout(() => setCopiedLink(false), 2500);
   };
 

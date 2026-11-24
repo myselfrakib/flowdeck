@@ -17,6 +17,7 @@ import { SettingsView } from './modules/settings/SettingsView';
 
 import { CreateProjectModal } from './modules/projects/CreateProjectModal';
 import { CallSheetModal } from './modules/call-sheet/CallSheetModal';
+import { AgencyInviteModal } from './components/shared/AgencyInviteModal';
 import { FirebaseModal } from './components/firebase/FirebaseModal';
 import { AuthPage } from './modules/auth/AuthPage';
 
@@ -63,6 +64,7 @@ const AppContent: React.FC = () => {
       {renderView()}
       <CreateProjectModal />
       <CallSheetModal />
+      <AgencyInviteModal />
     </AppShell>
   );
 };
