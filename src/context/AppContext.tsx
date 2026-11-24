@@ -151,6 +151,7 @@ interface AppContextType {
   createClient: (client: Omit<ClientProfile, 'id' | 'businessId' | 'portalToken' | 'totalProjects'>) => void;
   updateClient: (clientId: string, updates: Partial<ClientProfile>) => void;
   updateUserAvatar: (newAvatarUrl: string) => void;
+  createTeamMember: (memberData: Omit<User, 'id'>) => User;
 }
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -636,14 +637,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id: 'task_' + Math.random().toString(36).substr(2, 9),
       projectId: newId,
       title: 'Review Brief & Finalize Production Crew',
-      description: 'Review client requirements, verify deliverables, and assign crew members.',
-      assigneeIds: [projectItem.leadId],
+      description: 'Review client requirements, verify deliverables, and coordinate assigned team members: ' + (projectItem.teamIds.map(id => users.find(u => u.id === id)?.name).filter(Boolean).join(', ') || 'Lead Assignee'),
+      assigneeIds: Array.from(new Set([projectItem.leadId, ...projectItem.teamIds])),
       status: 'in_progress',
       priority: 'high',
       dueAt: new Date(Date.now() + 2 * 24 * 3600 * 1000).toISOString(),
       checklists: [
         { id: 'c1', text: 'Validate aspect ratios and deliverable formats', completed: true },
-        { id: 'c2', text: 'Reach out to crew for shoot availability', completed: false }
+        { id: 'c2', text: 'Coordinate with assigned crew to begin production execution', completed: false }
       ],
       createdAt: new Date().toISOString()
     };
@@ -1207,6 +1208,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     addToast('Profile Photo Updated', 'Your profile picture has been updated.', 'success');
   };
 
+  const createTeamMember = (memberData: Omit<User, 'id'>): User => {
+    const userId = 'user_' + Math.random().toString(36).substr(2, 9);
+    const newMember: User = {
+      ...memberData,
+      id: userId
+    };
+    setUsers((prev) => {
+      const nextUsers = [newMember, ...prev.filter(u => u.id !== userId)];
+      try {
+        localStorage.setItem('flowdeck_db_users', JSON.stringify(nextUsers));
+      } catch {}
+      return nextUsers;
+    });
+    saveFirestoreDoc(COLLECTIONS.USERS, newMember);
+    addToast('Team Member Added', `${newMember.name} has been added as ${newMember.designation}.`, 'success');
+    return newMember;
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -1270,7 +1289,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         createShootEvent,
         createClient,
         updateClient,
-        updateUserAvatar
+        updateUserAvatar,
+        createTeamMember
       }}
     >
       {children}

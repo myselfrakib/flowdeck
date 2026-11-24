@@ -15,15 +15,16 @@ import {
 import { UserRole } from '../../types';
 
 export const TeamDirectoryView: React.FC = () => {
-  const { users, currentUser, addToast } = useApp();
+  const { users, currentUser, addToast, createTeamMember } = useApp();
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [isInviteOpen, setIsInviteOpen] = useState(false);
 
   // Invite form
+  const [inviteName, setInviteName] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
   const [invitePhone, setInvitePhone] = useState('');
-  const [inviteRole, setInviteRole] = useState<UserRole>('videographer');
+  const [inviteRole, setInviteRole] = useState<string>('videographer');
 
   const filteredUsers = users.filter((u) => {
     if (u.role === 'client') return false; // clients are in Client Directory
@@ -39,8 +40,45 @@ export const TeamDirectoryView: React.FC = () => {
   const handleInviteSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!inviteEmail.trim()) return;
-    addToast('Invitation Dispatched', `Expiring invite sent to ${inviteEmail} for role ${inviteRole}.`, 'success');
+
+    const cleanPhone = invitePhone.trim()
+      ? (invitePhone.startsWith('+91') ? invitePhone.trim() : `+91 ${invitePhone.trim()}`)
+      : '+91 98765 43210';
+
+    const roleDesignations: Record<string, string> = {
+      videographer: 'Lead Videographer / DP',
+      photographer: 'Production Photographer',
+      video_editor: 'Video Editor & Colorist',
+      graphic_designer: 'Visual & Motion Designer',
+      model: 'On-Camera Talent / Model',
+      social_media_manager: 'Social Content Manager',
+      head_manager: 'Production Supervisor'
+    };
+
+    const sysRole: UserRole = 
+      inviteRole === 'head_manager' ? 'head_manager' :
+      inviteRole === 'model' ? 'model' :
+      inviteRole === 'photographer' ? 'photographer' :
+      inviteRole === 'video_editor' ? 'video_editor' :
+      inviteRole === 'graphic_designer' ? 'graphic_designer' :
+      inviteRole === 'social_media_manager' ? 'social_media_manager' : 'videographer';
+
+    const computedName = inviteName.trim() || inviteEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+
+    createTeamMember({
+      name: computedName,
+      email: inviteEmail.trim(),
+      phone: cleanPhone,
+      role: sysRole,
+      accountType: 'employee',
+      designation: roleDesignations[inviteRole] || 'Creative Personnel',
+      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&q=80',
+      availability: 'available',
+      bio: `${roleDesignations[inviteRole] || 'Specialist'} at agency.`
+    });
+
     setIsInviteOpen(false);
+    setInviteName('');
     setInviteEmail('');
     setInvitePhone('');
   };
@@ -199,6 +237,19 @@ export const TeamDirectoryView: React.FC = () => {
             </div>
 
             <form onSubmit={handleInviteSubmit} className="space-y-3">
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Liam O'Connor"
+                  value={inviteName}
+                  onChange={(e) => setInviteName(e.target.value)}
+                  className="w-full text-xs sm:text-sm px-3 py-2 rounded-xl border border-slate-200 focus:outline-hidden focus:border-blue-600"
+                />
+              </div>
+
               <div>
                 <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
                   Email Address *
