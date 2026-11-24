@@ -101,7 +101,7 @@ const ROLE_OPTIONS: RoleOption[] = [
 ];
 
 export const AuthPage: React.FC = () => {
-  const { login, signup, addToast, pendingInvite } = useApp();
+  const { login, signup, addToast, pendingInvite, users } = useApp();
 
   const [mode, setMode] = useState<'login' | 'signup'>('signup');
   const [loading, setLoading] = useState(false);
@@ -266,6 +266,12 @@ export const AuthPage: React.FC = () => {
               placeholder="you@agency.com"
               className="w-full text-xs sm:text-sm px-3 py-2 rounded-lg border border-slate-200 focus:outline-hidden focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition-colors"
             />
+            {mode === 'signup' && email.trim() && users.some(u => u.email.trim().toLowerCase() === email.trim().toLowerCase()) && (
+              <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-in fade-in">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>This email already has an account. One email is limited to one account only. Please Sign in.</span>
+              </p>
+            )}
           </div>
 
           <div>

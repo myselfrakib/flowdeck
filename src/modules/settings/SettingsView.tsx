@@ -15,6 +15,7 @@ import {
   Database,
   ExternalLink,
   Camera,
+  Phone,
   User as UserIcon
 } from 'lucide-react';
 import { ProfilePhotoModal } from '../../components/shared/ProfilePhotoModal';
@@ -27,7 +28,8 @@ export const SettingsView: React.FC = () => {
     setIsAuthModalOpen, 
     firebaseUser,
     currentUser,
-    updateUserAvatar
+    updateUserAvatar,
+    setIsPhoneModalOpen
   } = useApp();
 
   const [bizName, setBizName] = useState(activeBusiness.name);
@@ -114,14 +116,25 @@ export const SettingsView: React.FC = () => {
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setIsAvatarModalOpen(true)}
-            className="px-4 py-2 rounded-xl border border-blue-200 bg-blue-50/60 hover:bg-blue-50 text-blue-700 font-bold text-xs flex items-center gap-2 transition-all active:scale-95 shadow-2xs"
-          >
-            <Camera className="w-4 h-4 text-blue-600" />
-            <span>Change Profile Photo</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsPhoneModalOpen(true)}
+              className="px-3.5 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs flex items-center gap-1.5 transition-all active:scale-95 shadow-2xs"
+            >
+              <Phone className="w-4 h-4 text-blue-600" />
+              <span>Change Phone Number</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsAvatarModalOpen(true)}
+              className="px-4 py-2 rounded-xl border border-blue-200 bg-blue-50/60 hover:bg-blue-50 text-blue-700 font-bold text-xs flex items-center gap-2 transition-all active:scale-95 shadow-2xs"
+            >
+              <Camera className="w-4 h-4 text-blue-600" />
+              <span>Change Profile Photo</span>
+            </button>
+          </div>
         </div>
       </div>
 

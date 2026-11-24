@@ -135,8 +135,12 @@ interface AppContextType {
   setPendingInvite: (invite: PendingAgencyInvite | null) => void;
   isInviteModalOpen: boolean;
   setIsInviteModalOpen: (open: boolean) => void;
+  isPhoneModalOpen: boolean;
+  setIsPhoneModalOpen: (open: boolean) => void;
   acceptAgencyInvite: (invite?: PendingAgencyInvite) => void;
   rejectAgencyInvite: (invite?: PendingAgencyInvite) => void;
+  updateUserPhone: (newPhone: string) => void;
+  sendAgencyInviteNotification: (recipientUser: User, role: string, agency: Business, token: string) => void;
   firebaseUser: FirebaseUser | null;
   activeCallSheetShootId: string | null;
   setActiveCallSheetShootId: (id: string | null) => void;
@@ -334,7 +338,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
 
-  const [notifications, setNotifications] = useState<NotificationItem[]>(mockNotifications);
+  const [notifications, setNotifications] = useState<NotificationItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('flowdeck_db_notifications');
+      return saved ? JSON.parse(saved) : mockNotifications;
+    } catch {
+      return mockNotifications;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('flowdeck_db_notifications', JSON.stringify(notifications));
+    } catch {}
+  }, [notifications]);
 
   const [clients, setClients] = useState<ClientProfile[]>(() => {
     try {
@@ -474,6 +491,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [isPhoneModalOpen, setIsPhoneModalOpen] = useState(false);
 
   // Check URL invitation params & sync with pendingInvite state
   useEffect(() => {
@@ -506,6 +524,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (saved) {
           currentInvite = JSON.parse(saved);
           setPendingInvite(currentInvite);
+        }
+      }
+
+      // Check user-targeted pending invite if authenticated
+      if (isAuthenticated && currentUser && !currentInvite) {
+        const userInviteKey = `flowdeck_user_invite_${currentUser.id}`;
+        const emailInviteKey = `flowdeck_user_invite_${currentUser.email.toLowerCase()}`;
+        const savedUserInvite = localStorage.getItem(userInviteKey) || localStorage.getItem(emailInviteKey);
+        if (savedUserInvite) {
+          try {
+            currentInvite = JSON.parse(savedUserInvite);
+            setPendingInvite(currentInvite);
+          } catch {}
         }
       }
 
@@ -593,6 +624,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     agencyName?: string;
     agencyTagline?: string;
   }) => {
+    const normalizedEmail = data.email.trim().toLowerCase();
+    const existingUser = users.find(u => u.email.trim().toLowerCase() === normalizedEmail);
+    if (existingUser) {
+      throw new Error(`The email "${data.email}" is already associated with an account (${existingUser.name}). One email can only be associated with one account. Please sign in instead.`);
+    }
+
     try {
       await firebaseSignUp(data.email, data.password, data.name);
     } catch (fbErr: any) {
@@ -1302,7 +1339,80 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     addToast('Profile Photo Updated', 'Your profile picture has been updated.', 'success');
   };
 
+  const updateUserPhone = (newPhone: string) => {
+    let cleanPhone = newPhone.trim();
+    if (!cleanPhone) return;
+    if (!cleanPhone.startsWith('+91')) {
+      const digits = cleanPhone.replace(/\D/g, '');
+      cleanPhone = digits ? `+91 ${digits.slice(-10)}` : '+91 98765 43210';
+    }
+    const updatedUser: User = { ...currentUser, phone: cleanPhone };
+    setCurrentUser(updatedUser);
+    setUsers((prev) => {
+      const nextUsers = prev.some((u) => u.id === currentUser.id)
+        ? prev.map((u) => (u.id === currentUser.id ? updatedUser : u))
+        : [updatedUser, ...prev];
+      try {
+        localStorage.setItem('flowdeck_db_users', JSON.stringify(nextUsers));
+      } catch {}
+      return nextUsers;
+    });
+    try {
+      const session = localStorage.getItem('flowdeck_session');
+      const parsed = session ? JSON.parse(session) : {};
+      localStorage.setItem('flowdeck_session', JSON.stringify({ ...parsed, isAuthenticated: true, user: updatedUser }));
+    } catch {}
+
+    saveFirestoreDoc(COLLECTIONS.USERS, updatedUser);
+    addToast('Phone Number Updated', `Contact phone set to ${cleanPhone}.`, 'success');
+  };
+
+  const sendAgencyInviteNotification = (recipientUser: User, role: string, agency: Business, token: string) => {
+    const notifId = 'notif_invite_' + token;
+    const newNotif: NotificationItem = {
+      id: notifId,
+      recipientId: recipientUser.id,
+      title: `Agency Invitation: ${agency.name}`,
+      message: `Join "${agency.name}" as "${role}". Confirm or Reject invitation.`,
+      type: 'mention',
+      createdAt: new Date().toISOString(),
+      read: false
+    };
+    setNotifications((prev) => [newNotif, ...prev.filter((n) => n.id !== notifId)]);
+
+    const inviteData: PendingAgencyInvite = {
+      bizId: agency.id,
+      agencyName: agency.name,
+      agencyLogo: agency.logo || '🎬',
+      role,
+      token,
+      email: recipientUser.email
+    };
+
+    try {
+      localStorage.setItem(`flowdeck_user_invite_${recipientUser.id}`, JSON.stringify(inviteData));
+      localStorage.setItem(`flowdeck_user_invite_${recipientUser.email.toLowerCase()}`, JSON.stringify(inviteData));
+      localStorage.setItem('flowdeck_pending_invite', JSON.stringify(inviteData));
+    } catch {}
+
+    if (currentUser.id === recipientUser.id || currentUser.email.toLowerCase() === recipientUser.email.toLowerCase()) {
+      setPendingInvite(inviteData);
+      setIsInviteModalOpen(true);
+      addToast(
+        'Agency Invitation Received',
+        `Join "${agency.name}" as "${role}"? Confirm or Reject below.`,
+        'info'
+      );
+    }
+  };
+
   const createTeamMember = (memberData: Omit<User, 'id'>): User => {
+    const normalizedEmail = memberData.email.trim().toLowerCase();
+    const existing = users.find(u => u.email.trim().toLowerCase() === normalizedEmail);
+    if (existing) {
+      throw new Error(`The email "${memberData.email}" is already associated with an account (${existing.name}). One email can only be associated with one account.`);
+    }
+
     const userId = 'user_' + Math.random().toString(36).substr(2, 9);
     const newMember: User = {
       ...memberData,
@@ -1498,8 +1608,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setPendingInvite,
         isInviteModalOpen,
         setIsInviteModalOpen,
+        isPhoneModalOpen,
+        setIsPhoneModalOpen,
         acceptAgencyInvite,
         rejectAgencyInvite,
+        updateUserPhone,
+        sendAgencyInviteNotification,
         firebaseUser,
         activeCallSheetShootId,
         setActiveCallSheetShootId,

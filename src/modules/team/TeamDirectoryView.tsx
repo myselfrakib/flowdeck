@@ -18,12 +18,20 @@ import {
   ExternalLink,
   Sparkles,
   MessageSquare,
-  Smartphone
+  Smartphone,
+  UserCheck
 } from 'lucide-react';
 import { UserRole } from '../../types';
 
 export const TeamDirectoryView: React.FC = () => {
-  const { users, currentUser, activeBusiness, addToast, createTeamMember } = useApp();
+  const { 
+    users, 
+    currentUser, 
+    activeBusiness, 
+    addToast, 
+    createTeamMember, 
+    sendAgencyInviteNotification 
+  } = useApp();
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [isInviteOpen, setIsInviteOpen] = useState(false);
@@ -66,9 +74,12 @@ export const TeamDirectoryView: React.FC = () => {
     e.preventDefault();
     if (!inviteEmail.trim()) return;
 
+    const normalizedEmail = inviteEmail.trim().toLowerCase();
+    const existingEmployee = users.find(u => u.email.trim().toLowerCase() === normalizedEmail);
+
     const cleanPhone = invitePhone.trim()
       ? (invitePhone.startsWith('+91') ? invitePhone.trim() : `+91 ${invitePhone.trim()}`)
-      : '+91 98765 43210';
+      : (existingEmployee?.phone || '+91 98765 43210');
 
     const roleDesignations: Record<string, string> = {
       videographer: 'Lead Videographer / DP',
@@ -88,40 +99,51 @@ export const TeamDirectoryView: React.FC = () => {
       inviteRole === 'graphic_designer' ? 'graphic_designer' :
       inviteRole === 'social_media_manager' ? 'social_media_manager' : 'videographer';
 
-    const computedName = inviteName.trim() || inviteEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-
-    const defaultAvatarByRole: Record<string, string> = {
-      videographer: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
-      video_editor: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&q=80',
-      photographer: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
-      graphic_designer: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=400&q=80',
-      head_manager: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
-      model: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
-      social_media_manager: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=400&q=80'
-    };
-
-    createTeamMember({
-      name: computedName,
-      email: inviteEmail.trim(),
-      phone: cleanPhone,
-      role: sysRole,
-      accountType: 'employee',
-      designation: roleDesignations[inviteRole] || 'Creative Personnel',
-      avatar: defaultAvatarByRole[inviteRole] || defaultAvatarByRole.videographer,
-      availability: 'available',
-      bio: `${roleDesignations[inviteRole] || 'Specialist'} at ${activeBusiness.name}.`
-    });
-
-    // Prepare App Download & Workspace Join Email and Phone Messages
-    const phoneDigits = cleanPhone.replace(/\D/g, '');
+    const computedName = inviteName.trim() || (existingEmployee ? existingEmployee.name : inviteEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()));
+    const assignedRole = roleDesignations[inviteRole] || 'Creative Specialist';
     const inviteToken = 'inv_' + Math.random().toString(36).substr(2, 9);
+
+    if (existingEmployee) {
+      // One email is associated with one account only:
+      // Send confirm join agency notification directly to the employee's notification inbox
+      sendAgencyInviteNotification(existingEmployee, assignedRole, activeBusiness, inviteToken);
+      addToast(
+        'Invitation Sent to Employee',
+        `An in-app confirmation notification to join ${activeBusiness.name} as ${assignedRole} was sent to ${existingEmployee.name} (${existingEmployee.email}).`,
+        'success'
+      );
+    } else {
+      const defaultAvatarByRole: Record<string, string> = {
+        videographer: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
+        video_editor: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&q=80',
+        photographer: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
+        graphic_designer: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=400&q=80',
+        head_manager: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
+        model: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+        social_media_manager: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=400&q=80'
+      };
+
+      createTeamMember({
+        name: computedName,
+        email: normalizedEmail,
+        phone: cleanPhone,
+        role: sysRole,
+        accountType: 'employee',
+        designation: assignedRole,
+        avatar: defaultAvatarByRole[inviteRole] || defaultAvatarByRole.videographer,
+        availability: 'available',
+        bio: `${assignedRole} at ${activeBusiness.name}.`
+      });
+    }
+
+    // Prepare App Download & Workspace Join Email and Phone Messages (keeping everything else same)
+    const phoneDigits = cleanPhone.replace(/\D/g, '');
     const downloadUrl = 'https://flowdeck.app/download';
     const origin = typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}` : 'https://flowdeck.app';
-    const assignedRole = roleDesignations[inviteRole] || 'Creative Specialist';
-    const joinUrl = `${origin}?join_biz=${encodeURIComponent(activeBusiness.id)}&agency_name=${encodeURIComponent(activeBusiness.name)}&agency_logo=${encodeURIComponent(activeBusiness.logo || '🎬')}&role=${encodeURIComponent(assignedRole)}&token=${inviteToken}&email=${encodeURIComponent(inviteEmail.trim())}`;
+    const joinUrl = `${origin}?join_biz=${encodeURIComponent(activeBusiness.id)}&agency_name=${encodeURIComponent(activeBusiness.name)}&agency_logo=${encodeURIComponent(activeBusiness.logo || '🎬')}&role=${encodeURIComponent(assignedRole)}&token=${inviteToken}&email=${encodeURIComponent(normalizedEmail)}`;
     const emailSubject = `Invitation to join ${activeBusiness.name} on FlowDeck`;
     const emailBody = `Hi ${computedName},\n\nYou have been invited to join ${activeBusiness.name} on FlowDeck as ${assignedRole}.\n\n1. Accept your invitation and enter the agency workspace:\n${joinUrl}\n\n2. Download the FlowDeck App (iOS, Android, or Desktop):\n${downloadUrl}\n\nInvited by: ${currentUser.name} (${activeBusiness.name})`;
-    const mailtoUrl = `mailto:${encodeURIComponent(inviteEmail.trim())}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
+    const mailtoUrl = `mailto:${encodeURIComponent(normalizedEmail)}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
     const messageText = `Hi ${computedName}, you've been invited by ${activeBusiness.name} to join our studio operations workspace on FlowDeck as ${assignedRole}.\n\n1. Join Workspace: ${joinUrl}\n2. Download App: ${downloadUrl}`;
     const whatsappUrl = phoneDigits ? `https://wa.me/${phoneDigits}?text=${encodeURIComponent(messageText)}` : '';
     const smsUrl = phoneDigits ? `sms:${phoneDigits}?body=${encodeURIComponent(messageText)}` : '';
@@ -129,7 +151,7 @@ export const TeamDirectoryView: React.FC = () => {
     // Set success modal state
     setInviteSuccessModal({
       name: computedName,
-      email: inviteEmail.trim(),
+      email: normalizedEmail,
       phone: cleanPhone,
       role: assignedRole,
       downloadUrl,
@@ -195,7 +217,7 @@ export const TeamDirectoryView: React.FC = () => {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name, phone number, or title..."
+            placeholder="Search by name, email, phone number, or title..."
             className="w-full pl-9 pr-3 py-1.5 text-xs sm:text-sm rounded-xl border border-slate-200 focus:outline-hidden focus:border-blue-500 bg-slate-50/50"
           />
         </div>
@@ -214,6 +236,32 @@ export const TeamDirectoryView: React.FC = () => {
           <option value="model">Talent / Models</option>
         </select>
       </div>
+
+      {/* Quick Add By Email Search Banner */}
+      {search.trim().length >= 2 && users.find(u => u.email.toLowerCase().includes(search.toLowerCase().trim())) && (
+        <div className="p-3 bg-blue-50/80 border border-blue-200 rounded-2xl flex items-center justify-between gap-3 text-xs animate-in fade-in">
+          <div className="flex items-center gap-2.5">
+            <UserCheck className="w-4 h-4 text-blue-600 shrink-0" />
+            <p className="text-slate-800">
+              Found FlowDeck employee account: <strong className="text-blue-700">{users.find(u => u.email.toLowerCase().includes(search.toLowerCase().trim()))?.name}</strong> ({users.find(u => u.email.toLowerCase().includes(search.toLowerCase().trim()))?.email})
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              const u = users.find(user => user.email.toLowerCase().includes(search.toLowerCase().trim()));
+              if (u) {
+                setInviteEmail(u.email);
+                setInviteName(u.name);
+                setInvitePhone(u.phone);
+                setIsInviteOpen(true);
+              }
+            }}
+            className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-colors shrink-0"
+          >
+            Invite to {activeBusiness.name}
+          </button>
+        </div>
+      )}
 
       {/* Team Cards Grid / Empty State */}
       {filteredUsers.length === 0 ? (
@@ -339,9 +387,38 @@ export const TeamDirectoryView: React.FC = () => {
                   required
                   placeholder="name@agency.com"
                   value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setInviteEmail(val);
+                    const match = users.find(u => u.email.trim().toLowerCase() === val.trim().toLowerCase());
+                    if (match) {
+                      if (!inviteName) setInviteName(match.name);
+                      if (!invitePhone && match.phone) setInvitePhone(match.phone);
+                    }
+                  }}
                   className="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-hidden focus:border-blue-600"
                 />
+                {inviteEmail.trim() && users.find(u => u.email.trim().toLowerCase() === inviteEmail.trim().toLowerCase()) && (
+                  <div className="mt-2 p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 flex items-start gap-2 animate-in fade-in">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="font-bold text-emerald-950">
+                          Existing Account Found
+                        </span>
+                        <span className="text-[9px] font-bold uppercase tracking-wider bg-emerald-200/80 text-emerald-900 px-1.5 py-0.5 rounded">
+                          1 Account / Email
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-emerald-800 mt-0.5">
+                        {users.find(u => u.email.trim().toLowerCase() === inviteEmail.trim().toLowerCase())?.name} • {users.find(u => u.email.trim().toLowerCase() === inviteEmail.trim().toLowerCase())?.phone}
+                      </p>
+                      <p className="text-[10px] text-emerald-700 mt-1">
+                        Submitting will send a <strong>"Confirm Join {activeBusiness.name}"</strong> invitation notification directly to their account inbox while keeping email & message invite delivery ready.
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>

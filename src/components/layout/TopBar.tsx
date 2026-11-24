@@ -39,6 +39,8 @@ export const TopBar: React.FC = () => {
     updateUserAvatar,
     pendingInvite,
     setIsInviteModalOpen,
+    isPhoneModalOpen,
+    setIsPhoneModalOpen,
     acceptAgencyInvite,
     rejectAgencyInvite
   } = useApp();
@@ -207,6 +209,22 @@ export const TopBar: React.FC = () => {
                   <div className="flex items-center justify-between text-slate-600">
                     <span className="text-[11px] text-slate-400 font-medium">Designation:</span>
                     <span className="font-semibold text-slate-800 text-right truncate max-w-[170px]">{currentUser.designation}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-slate-600">
+                    <span className="text-[11px] text-slate-400 font-medium">Phone Number:</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-semibold text-slate-800 font-mono text-[11px]">{currentUser.phone || '+91 98765 43210'}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsPersonaMenuOpen(false);
+                          setIsPhoneModalOpen(true);
+                        }}
+                        className="text-[10px] text-blue-600 hover:text-blue-800 font-bold underline"
+                      >
+                        Change
+                      </button>
+                    </div>
                   </div>
                   <div className="flex items-center justify-between text-slate-600">
                     <span className="text-[11px] text-slate-400 font-medium">Department:</span>
