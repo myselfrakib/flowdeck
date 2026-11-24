@@ -103,8 +103,28 @@ export const TeamDirectoryView: React.FC = () => {
         </select>
       </div>
 
-      {/* Team Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* Team Cards Grid / Empty State */}
+      {filteredUsers.length === 0 ? (
+        <div className="bg-white rounded-3xl border border-dashed border-slate-300 p-12 text-center space-y-3">
+          <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto">
+            <Users className="w-6 h-6" />
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-slate-900">No team members yet</h3>
+            <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+              Start building your creative production crew by inviting videographers, photographers, editors, and managers.
+            </p>
+          </div>
+          <button
+            onClick={() => setIsInviteOpen(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition-colors"
+          >
+            <UserPlus className="w-4 h-4" />
+            <span>Invite First Creator</span>
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredUsers.map((user) => {
           const availabilityStyles = {
             available: 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -163,6 +183,7 @@ export const TeamDirectoryView: React.FC = () => {
           );
         })}
       </div>
+      )}
 
       {/* Invite Member Modal */}
       {isInviteOpen && (

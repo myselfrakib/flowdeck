@@ -112,7 +112,7 @@ export const AuthPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [selectedRole, setSelectedRole] = useState<UserRole>('owner');
-  const [agencyName, setAgencyName] = useState('Apex Media Studios');
+  const [agencyName, setAgencyName] = useState('');
 
   const selectedRoleMeta = ROLE_OPTIONS.find(r => r.role === selectedRole) || ROLE_OPTIONS[0];
 
@@ -134,7 +134,7 @@ export const AuthPage: React.FC = () => {
           role: selectedRole,
           designation: selectedRoleMeta.defaultDesignation,
           department: selectedRoleMeta.defaultDepartment,
-          agencyName: selectedRole === 'owner' ? (agencyName.trim() || 'Apex Media Studios') : undefined
+          agencyName: selectedRole === 'owner' ? (agencyName.trim() || 'My Creative Agency') : undefined
         });
 
         addToast('Welcome', `Signed in as ${name}`, 'success');
@@ -214,7 +214,7 @@ export const AuthPage: React.FC = () => {
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Marcus Vance"
+                placeholder="e.g. Rahul Sharma"
                 className="w-full text-xs sm:text-sm px-3 py-2 rounded-lg border border-slate-200 focus:outline-hidden focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition-colors"
               />
             </div>
@@ -287,7 +287,7 @@ export const AuthPage: React.FC = () => {
                     required
                     value={agencyName}
                     onChange={(e) => setAgencyName(e.target.value)}
-                    placeholder="Apex Media Studios"
+                    placeholder="e.g. Horizon Media Studio"
                     className="w-full text-xs sm:text-sm px-3 py-2 rounded-lg border border-slate-200 focus:outline-hidden focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition-colors"
                   />
                 </div>

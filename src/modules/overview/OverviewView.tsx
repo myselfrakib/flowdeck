@@ -285,8 +285,10 @@ export const OverviewView: React.FC = () => {
                 </h4>
                 <div className="text-xs text-slate-600 space-y-1 bg-slate-50 p-3 rounded-xl border border-slate-200/60">
                   <p>📍 <strong>Location:</strong> {upcomingShoots[0].location}</p>
-                  <p>⏰ <strong>Call Time:</strong> 07:00 AM (Elena) / 08:00 AM (Crew)</p>
-                  <p>👗 <strong>Wardrobe:</strong> Dewy natural silk & linen</p>
+                  <p>⏰ <strong>Call Time:</strong> {upcomingShoots[0].participants?.[0]?.callTime || '08:00 AM'}</p>
+                  {upcomingShoots[0].wardrobeNotes && (
+                    <p>👗 <strong>Wardrobe:</strong> {upcomingShoots[0].wardrobeNotes}</p>
+                  )}
                 </div>
                 <button
                   onClick={() => openProject(upcomingShoots[0].projectId, 'schedule')}

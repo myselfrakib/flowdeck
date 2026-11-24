@@ -23,7 +23,7 @@ export const HRView: React.FC = () => {
           HR records, compensation notes, and private personnel leave are strictly restricted to Agency Owners and HR Managers as defined in the StudioFlow Security Blueprint.
         </p>
         <p className="text-[11px] text-blue-600 font-semibold mt-3">
-          Tip: Switch persona to Marcus Vance (Owner) or Sarah Jenkins (HR Manager) via the top bar to inspect this module.
+          Sign in as an Agency Owner or HR Manager to inspect and manage team leave.
         </p>
       </div>
     );

@@ -155,10 +155,60 @@ interface AppContextType {
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
 
+const DEFAULT_BUSINESS: Business = {
+  id: 'biz_main',
+  name: 'My Creative Agency',
+  tagline: 'High-Performance Production & Studio Operations',
+  logo: '🎬',
+  category: 'Creative Production Agency',
+  ownerId: 'user_owner',
+  timezone: 'Asia/Kolkata (IST)',
+  workingDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+  storageProvider: 'firebase',
+  createdAt: new Date().toISOString()
+};
+
+const DEFAULT_USER: User = {
+  id: 'user_owner',
+  name: 'Agency Producer',
+  email: 'admin@flowdeck.app',
+  phone: '+91 98765 43210',
+  avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+  bio: 'Executive Producer & Studio Operations Lead.',
+  role: 'owner',
+  accountType: 'business_owner',
+  designation: 'Agency Founder & Director',
+  department: 'Executive',
+  availability: 'available'
+};
+
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [businesses, setBusinesses] = useState<Business[]>(mockBusinesses);
-  const [activeBusiness, setActiveBusiness] = useState<Business>(mockBusinesses[0]);
-  const [users, setUsers] = useState<User[]>(mockUsers);
+  const [businesses, setBusinesses] = useState<Business[]>(() => {
+    try {
+      const saved = localStorage.getItem('flowdeck_db_businesses');
+      return saved ? JSON.parse(saved) : (mockBusinesses.length > 0 ? mockBusinesses : [DEFAULT_BUSINESS]);
+    } catch {
+      return [DEFAULT_BUSINESS];
+    }
+  });
+
+  const [activeBusiness, setActiveBusiness] = useState<Business>(() => {
+    try {
+      const saved = localStorage.getItem('flowdeck_db_active_biz');
+      return saved ? JSON.parse(saved) : (businesses[0] || DEFAULT_BUSINESS);
+    } catch {
+      return DEFAULT_BUSINESS;
+    }
+  });
+
+  const [users, setUsers] = useState<User[]>(() => {
+    try {
+      const saved = localStorage.getItem('flowdeck_db_users');
+      return saved ? JSON.parse(saved) : (mockUsers.length > 0 ? mockUsers : [DEFAULT_USER]);
+    } catch {
+      return [DEFAULT_USER];
+    }
+  });
   
   // Real Session & Auth Persistence
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
@@ -178,7 +228,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (parsed.user) return parsed.user;
       }
     } catch {}
-    return mockUsers[0]; // Marcus Vance (Owner) fallback
+    return users[0] || DEFAULT_USER;
   });
 
   const [currentView, setCurrentView] = useState<AppView>(() => {
