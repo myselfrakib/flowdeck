@@ -264,6 +264,7 @@ export interface ClientProfile {
   email: string;
   phone: string;
   avatar: string;
+  logoUrl?: string;
   status: 'active' | 'prospect' | 'on_hold';
   totalProjects: number;
   portalToken: string;

@@ -144,6 +144,7 @@ interface AppContextType {
   rescheduleShoot: (shootId: string, newStartAt: string, newEndAt: string, reason: string) => void;
   createShootEvent: (shoot: Omit<ShootEvent, 'id' | 'createdAt'>) => void;
   createClient: (client: Omit<ClientProfile, 'id' | 'businessId' | 'portalToken' | 'totalProjects'>) => void;
+  updateClient: (clientId: string, updates: Partial<ClientProfile>) => void;
   updateUserAvatar: (newAvatarUrl: string) => void;
 }
 
@@ -904,6 +905,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     addToast('Client Onboarded', `"${newClient.brandName}" added to client directory.`, 'success');
   };
 
+  const updateClient = (clientId: string, updates: Partial<ClientProfile>) => {
+    setClients((prev) =>
+      prev.map((c) => (c.id === clientId ? { ...c, ...updates } : c))
+    );
+    addToast('Client Updated', 'Client profile and branding updated successfully.', 'success');
+  };
+
   const updateUserAvatar = (newAvatarUrl: string) => {
     if (!newAvatarUrl.trim()) return;
     const updatedUser = { ...currentUser, avatar: newAvatarUrl.trim() };
@@ -981,6 +989,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         rescheduleShoot,
         createShootEvent,
         createClient,
+        updateClient,
         updateUserAvatar
       }}
     >

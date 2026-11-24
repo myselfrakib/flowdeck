@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import { 
   Building, 
@@ -17,7 +17,10 @@ import {
   Users, 
   ArrowRight,
   TrendingUp,
-  CheckCircle2
+  CheckCircle2,
+  Upload,
+  Camera,
+  Image as ImageIcon
 } from 'lucide-react';
 import { ClientProfile } from '../../types';
 
@@ -28,6 +31,7 @@ export const ClientDirectoryView: React.FC = () => {
     setCurrentView, 
     openProject, 
     createClient, 
+    updateClient,
     setIsCreateProjectOpen,
     currentUser 
   } = useApp();
@@ -45,6 +49,13 @@ export const ClientDirectoryView: React.FC = () => {
   const [phone, setPhone] = useState('');
   const [status, setStatus] = useState<'active' | 'prospect' | 'on_hold'>('active');
   const [selectedAvatar, setSelectedAvatar] = useState('💎');
+  const [logoUrl, setLogoUrl] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Edit Client Logo State
+  const [editingClientForLogo, setEditingClientForLogo] = useState<ClientProfile | null>(null);
+  const [editLogoUrl, setEditLogoUrl] = useState('');
+  const editFileInputRef = useRef<HTMLInputElement>(null);
 
   const avatarOptions = ['🌸', '⚡', '🏎️', '☕', '☀️', '🎧', '💎', '🚀', '🌿', '👗', '🍔', '🎬', '✨', '🪐', '👟'];
 
@@ -76,6 +87,7 @@ export const ClientDirectoryView: React.FC = () => {
       email: email.trim() || `contact@${brandName.toLowerCase().replace(/\s+/g, '')}.com`,
       phone: cleanPhone,
       avatar: selectedAvatar,
+      logoUrl: logoUrl.trim() || undefined,
       status
     });
 
@@ -85,6 +97,31 @@ export const ClientDirectoryView: React.FC = () => {
     setContactPerson('');
     setEmail('');
     setPhone('');
+    setLogoUrl('');
+  };
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>, isEditing = false) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const result = event.target?.result as string;
+        if (isEditing) {
+          setEditLogoUrl(result);
+        } else {
+          setLogoUrl(result);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSaveUpdatedLogo = () => {
+    if (editingClientForLogo) {
+      updateClient(editingClientForLogo.id, { logoUrl: editLogoUrl });
+      setEditingClientForLogo(null);
+      setEditLogoUrl('');
+    }
   };
 
   return (
@@ -239,9 +276,31 @@ export const ClientDirectoryView: React.FC = () => {
               >
                 <div>
                   <div className="flex items-center justify-between">
-                    <span className="text-3xl p-2 bg-slate-50 rounded-2xl border border-slate-100 shadow-2xs group-hover:scale-105 transition-transform">
-                      {client.avatar}
-                    </span>
+                    <div className="relative group/logo">
+                      {client.logoUrl ? (
+                        <img 
+                          src={client.logoUrl} 
+                          alt={client.brandName} 
+                          className="w-12 h-12 rounded-2xl object-contain bg-slate-50 p-1 border border-slate-200 shadow-2xs group-hover/logo:scale-105 transition-transform"
+                        />
+                      ) : (
+                        <span className="text-3xl p-2 bg-slate-50 rounded-2xl border border-slate-100 shadow-2xs group-hover/logo:scale-105 transition-transform block">
+                          {client.avatar}
+                        </span>
+                      )}
+                      {currentUser.role !== 'client' && (
+                        <button
+                          onClick={() => {
+                            setEditingClientForLogo(client);
+                            setEditLogoUrl(client.logoUrl || '');
+                          }}
+                          className="absolute inset-0 rounded-2xl bg-slate-900/60 opacity-0 group-hover/logo:opacity-100 transition-opacity flex items-center justify-center text-white"
+                          title="Change Client Logo"
+                        >
+                          <Camera className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
                     <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full border ${statusConfig.bg}`}>
                       {statusConfig.label}
                     </span>
@@ -329,7 +388,11 @@ export const ClientDirectoryView: React.FC = () => {
                     <tr key={client.id} className="hover:bg-blue-50/30 transition-colors">
                       <td className="py-3.5 px-4">
                         <div className="flex items-center gap-2.5">
-                          <span className="text-xl">{client.avatar}</span>
+                          {client.logoUrl ? (
+                            <img src={client.logoUrl} alt={client.brandName} className="w-8 h-8 rounded-lg object-contain bg-slate-50 border border-slate-200" />
+                          ) : (
+                            <span className="text-xl">{client.avatar}</span>
+                          )}
                           <div>
                             <p className="font-bold text-slate-900">{client.brandName}</p>
                             <p className="text-[11px] text-slate-500">{client.companyName}</p>
@@ -394,24 +457,73 @@ export const ClientDirectoryView: React.FC = () => {
 
             <form onSubmit={handleAddClientSubmit} className="space-y-3.5">
               
-              {/* Brand Emoji Picker */}
-              <div>
+              {/* Client Logo Upload or Emoji */}
+              <div className="space-y-2">
                 <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
-                  Brand Logo / Identity Emoji
+                  Client Brand Logo (Upload or Choose Emoji)
                 </label>
-                <div className="flex items-center gap-2 flex-wrap p-2 bg-slate-50 rounded-xl border border-slate-200">
-                  {avatarOptions.map((emoji) => (
-                    <button
-                      type="button"
-                      key={emoji}
-                      onClick={() => setSelectedAvatar(emoji)}
-                      className={`text-xl p-1.5 rounded-lg transition-transform ${
-                        selectedAvatar === emoji ? 'bg-blue-600 scale-125 shadow-xs' : 'hover:bg-slate-200'
-                      }`}
-                    >
-                      {emoji}
-                    </button>
-                  ))}
+                
+                <div className="flex items-center gap-3">
+                  <div className="relative w-14 h-14 rounded-2xl bg-slate-50 border-2 border-dashed border-slate-300 flex items-center justify-center overflow-hidden shrink-0">
+                    {logoUrl ? (
+                      <img src={logoUrl} alt="Brand Logo Preview" className="w-full h-full object-contain p-1" />
+                    ) : (
+                      <span className="text-2xl">{selectedAvatar}</span>
+                    )}
+                  </div>
+
+                  <div className="flex-1 space-y-1.5">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleLogoUpload(e, false)}
+                      className="hidden"
+                    />
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="px-3 py-1.5 rounded-xl border border-blue-200 bg-blue-50/60 hover:bg-blue-100 text-blue-700 text-xs font-bold flex items-center gap-1.5 shadow-2xs transition-colors"
+                      >
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>Upload Logo</span>
+                      </button>
+                      {logoUrl && (
+                        <button
+                          type="button"
+                          onClick={() => setLogoUrl('')}
+                          className="px-2 py-1.5 text-xs text-rose-600 hover:text-rose-800 font-semibold"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-slate-400">
+                      Upload brand logo (PNG, JPG, SVG). Can also be changed later.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Brand Emoji Fallback */}
+                <div>
+                  <span className="block text-[10px] font-semibold text-slate-400 mb-1">
+                    Or select an icon badge:
+                  </span>
+                  <div className="flex items-center gap-1.5 flex-wrap p-2 bg-slate-50 rounded-xl border border-slate-200 max-h-24 overflow-y-auto">
+                    {avatarOptions.map((emoji) => (
+                      <button
+                        type="button"
+                        key={emoji}
+                        onClick={() => setSelectedAvatar(emoji)}
+                        className={`text-lg p-1 rounded-lg transition-transform ${
+                          selectedAvatar === emoji && !logoUrl ? 'bg-blue-600 scale-110 shadow-xs text-white' : 'hover:bg-slate-200'
+                        }`}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -542,6 +654,92 @@ export const ClientDirectoryView: React.FC = () => {
 
             </form>
 
+          </div>
+        </div>
+      )}
+
+      {/* Update Client Logo Modal */}
+      {editingClientForLogo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/50 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl p-5 sm:p-6 shadow-2xl border border-slate-200 max-w-sm w-full space-y-4 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <h3 className="text-sm font-bold text-slate-900">
+                Update Logo: {editingClientForLogo.brandName}
+              </h3>
+              <button 
+                onClick={() => {
+                  setEditingClientForLogo(null);
+                  setEditLogoUrl('');
+                }} 
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-24 h-24 rounded-2xl bg-slate-50 border-2 border-dashed border-blue-400 p-2 flex items-center justify-center overflow-hidden shadow-xs">
+                {editLogoUrl ? (
+                  <img src={editLogoUrl} alt="Logo preview" className="w-full h-full object-contain" />
+                ) : (
+                  <span className="text-3xl">{editingClientForLogo.avatar}</span>
+                )}
+              </div>
+              <p className="text-[11px] text-slate-500 text-center">
+                Upload a company icon or logo mark (PNG, SVG, JPG)
+              </p>
+            </div>
+
+            <div>
+              <input
+                ref={editFileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={(e) => handleLogoUpload(e, true)}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => editFileInputRef.current?.click()}
+                className="w-full py-2 px-3 rounded-xl border border-blue-200 bg-blue-50/60 hover:bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center gap-2 shadow-2xs transition-colors"
+              >
+                <Upload className="w-4 h-4" />
+                <span>Choose Image from Device</span>
+              </button>
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
+                Or Logo Web URL
+              </label>
+              <input
+                type="url"
+                placeholder="https://example.com/logo.png"
+                value={editLogoUrl}
+                onChange={(e) => setEditLogoUrl(e.target.value)}
+                className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 focus:outline-hidden focus:border-blue-600 font-mono"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingClientForLogo(null);
+                  setEditLogoUrl('');
+                }}
+                className="px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded-lg"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveUpdatedLogo}
+                className="px-4 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs"
+              >
+                Save Logo
+              </button>
+            </div>
           </div>
         </div>
       )}

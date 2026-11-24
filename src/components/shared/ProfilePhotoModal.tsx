@@ -368,3 +368,4 @@ export const ProfilePhotoModal: React.FC<Props> = ({
     </div>
   );
 };
+
