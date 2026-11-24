@@ -198,8 +198,29 @@ export const ClientDirectoryView: React.FC = () => {
         </div>
       </div>
 
-      {/* Grid Mode View */}
-      {viewMode === 'grid' ? (
+      {/* Empty State */}
+      {filteredClients.length === 0 ? (
+        <div className="bg-white rounded-3xl border border-dashed border-slate-300 p-12 text-center space-y-4">
+          <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto">
+            <Building className="w-6 h-6" />
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-slate-900">No client accounts found</h3>
+            <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+              {clients.length === 0
+                ? 'Get started by onboarding your first client. Each client receives a dedicated review portal token and campaign workspace.'
+                : 'No clients match your filter criteria.'}
+            </p>
+          </div>
+          <button
+            onClick={() => setIsAddClientOpen(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Onboard New Client</span>
+          </button>
+        </div>
+      ) : viewMode === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredClients.map((client) => {
             const clientProjects = projects.filter(p => p.clientId === client.id);

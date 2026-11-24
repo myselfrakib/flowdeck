@@ -9,15 +9,26 @@ import {
   Kanban, 
   ExternalLink,
   Plus,
-  AlertTriangle
+  AlertTriangle,
+  X
 } from 'lucide-react';
-import { TaskStatus } from '../../types';
+import { TaskStatus, ProjectPriority } from '../../types';
 
 export const TasksView: React.FC = () => {
-  const { tasks, projects, users, updateTaskStatus, openProject, currentUser } = useApp();
+  const { tasks, projects, users, updateTaskStatus, openProject, createTask, currentUser } = useApp();
   const [viewMode, setViewMode] = useState<'list' | 'board'>('list');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [projectFilter, setProjectFilter] = useState<string>('all');
+  const [isNewTaskOpen, setIsNewTaskOpen] = useState(false);
+
+  // New Task form state
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [projectId, setProjectId] = useState(projects[0]?.id || '');
+  const [priority, setPriority] = useState<ProjectPriority>('medium');
+  const [dueAt, setDueAt] = useState(new Date(Date.now() + 2 * 24 * 3600 * 1000).toISOString().split('T')[0]);
+  const [selectedAssigneeIds, setSelectedAssigneeIds] = useState<string[]>([currentUser.id]);
+  const [blockerReason, setBlockerReason] = useState('');
 
   const filteredTasks = tasks.filter((t) => {
     const matchStatus = statusFilter === 'all' || t.status === statusFilter;
@@ -32,6 +43,38 @@ export const TasksView: React.FC = () => {
     { status: 'in_review', label: 'Review' },
     { status: 'completed', label: 'Completed' }
   ];
+
+  const handleCreateTask = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim()) return;
+
+    createTask({
+      projectId: projectId || projects[0]?.id || 'proj_general',
+      title: title.trim(),
+      description: description.trim(),
+      assigneeIds: selectedAssigneeIds.length > 0 ? selectedAssigneeIds : [currentUser.id],
+      status: blockerReason.trim() ? 'blocked' : 'todo',
+      priority,
+      dueAt: new Date(dueAt).toISOString(),
+      blockerReason: blockerReason.trim() || undefined,
+      checklists: [
+        { id: 'c_' + Math.random().toString(36).substr(2, 6), text: 'Initial deliverable checklist', completed: false }
+      ]
+    });
+
+    setIsNewTaskOpen(false);
+    setTitle('');
+    setDescription('');
+    setBlockerReason('');
+  };
+
+  const toggleAssignee = (id: string) => {
+    if (selectedAssigneeIds.includes(id)) {
+      setSelectedAssigneeIds(selectedAssigneeIds.filter(i => i !== id));
+    } else {
+      setSelectedAssigneeIds([...selectedAssigneeIds, id]);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -52,26 +95,42 @@ export const TasksView: React.FC = () => {
           </p>
         </div>
 
-        {/* View Mode Toggle */}
-        <div className="flex items-center border border-slate-200 rounded-xl p-0.5 bg-white shadow-2xs">
+        <div className="flex items-center gap-2">
+          {/* Add Task Button */}
           <button
-            onClick={() => setViewMode('list')}
-            className={`p-1.5 px-3 rounded-lg text-xs flex items-center gap-1 font-semibold ${
-              viewMode === 'list' ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
-            }`}
+            onClick={() => {
+              if (projects.length > 0 && !projectId) {
+                setProjectId(projects[0].id);
+              }
+              setIsNewTaskOpen(true);
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition-colors"
           >
-            <LayoutList className="w-3.5 h-3.5" />
-            <span>List</span>
+            <Plus className="w-3.5 h-3.5" />
+            <span>Add Task</span>
           </button>
-          <button
-            onClick={() => setViewMode('board')}
-            className={`p-1.5 px-3 rounded-lg text-xs flex items-center gap-1 font-semibold ${
-              viewMode === 'board' ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Kanban className="w-3.5 h-3.5" />
-            <span>Kanban Board</span>
-          </button>
+
+          {/* View Mode Toggle */}
+          <div className="flex items-center border border-slate-200 rounded-xl p-0.5 bg-white shadow-2xs">
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-1.5 px-3 rounded-lg text-xs flex items-center gap-1 font-semibold ${
+                viewMode === 'list' ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <LayoutList className="w-3.5 h-3.5" />
+              <span>List</span>
+            </button>
+            <button
+              onClick={() => setViewMode('board')}
+              className={`p-1.5 px-3 rounded-lg text-xs flex items-center gap-1 font-semibold ${
+                viewMode === 'board' ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Kanban className="w-3.5 h-3.5" />
+              <span>Kanban</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -102,8 +161,35 @@ export const TasksView: React.FC = () => {
         </select>
       </div>
 
-      {/* List Mode */}
-      {viewMode === 'list' ? (
+      {/* Empty State */}
+      {filteredTasks.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-12 text-center space-y-3">
+          <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto">
+            <CheckSquare className="w-6 h-6" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-slate-900">No tasks found</h3>
+            <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+              {tasks.length === 0 
+                ? 'Your task queue is clear. Create your first production task to track deliverables.'
+                : 'No tasks match the selected filters.'}
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              if (projects.length > 0 && !projectId) {
+                setProjectId(projects[0].id);
+              }
+              setIsNewTaskOpen(true);
+            }}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Create Task</span>
+          </button>
+        </div>
+      ) : viewMode === 'list' ? (
+        /* List Mode */
         <div className="space-y-3">
           {filteredTasks.map((task) => {
             const project = projects.find(p => p.id === task.projectId);
@@ -116,13 +202,19 @@ export const TasksView: React.FC = () => {
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <button
-                      onClick={() => openProject(task.projectId, 'tasks')}
-                      className="text-xs font-mono font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded border border-blue-100 flex items-center gap-1"
-                    >
-                      <span>{project?.code}</span>
-                      <ExternalLink className="w-3 h-3" />
-                    </button>
+                    {project ? (
+                      <button
+                        onClick={() => openProject(task.projectId, 'tasks')}
+                        className="text-xs font-mono font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded border border-blue-100 flex items-center gap-1"
+                      >
+                        <span>{project.code}</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </button>
+                    ) : (
+                      <span className="text-xs font-mono font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                        General
+                      </span>
+                    )}
                     <PriorityBadge priority={task.priority} />
                     <StatusBadge status={task.status} size="sm" />
                   </div>
@@ -192,7 +284,7 @@ export const TasksView: React.FC = () => {
                     return (
                       <div key={t.id} className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs space-y-1.5">
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-mono text-blue-600 font-bold">{project?.code}</span>
+                          <span className="text-[10px] font-mono text-blue-600 font-bold">{project?.code || 'GEN'}</span>
                           <PriorityBadge priority={t.priority} />
                         </div>
                         <h5 className="text-xs font-bold text-slate-800 line-clamp-2">{t.title}</h5>
@@ -215,7 +307,159 @@ export const TasksView: React.FC = () => {
         </div>
       )}
 
+      {/* Add Task Modal */}
+      {isNewTaskOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/40 backdrop-blur-xs overflow-y-auto">
+          <div className="bg-white rounded-2xl p-5 sm:p-6 shadow-2xl border border-slate-200 max-w-lg w-full max-h-[92vh] overflow-y-auto space-y-4 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-blue-100 text-blue-700">
+                  <CheckSquare className="w-4 h-4" />
+                </div>
+                <h4 className="text-sm font-bold text-slate-900">
+                  Create New Task
+                </h4>
+              </div>
+              <button onClick={() => setIsNewTaskOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateTask} className="space-y-4">
+              <div>
+                <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
+                  Task Title *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Color grade outdoor b-roll sequences"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className="w-full text-xs sm:text-sm px-3 py-2 rounded-xl border border-slate-200 focus:outline-hidden focus:border-blue-600"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
+                  Description / Deliverable Specs
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="Provide context, required deliverable parameters, or instructions..."
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="w-full text-xs sm:text-sm px-3 py-2 rounded-xl border border-slate-200 focus:outline-hidden focus:border-blue-600"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
+                    Target Project
+                  </label>
+                  <select
+                    value={projectId}
+                    onChange={(e) => setProjectId(e.target.value)}
+                    className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 focus:outline-hidden"
+                  >
+                    {projects.map((p) => (
+                      <option key={p.id} value={p.id}>{p.code} — {p.title}</option>
+                    ))}
+                    {projects.length === 0 && (
+                      <option value="proj_general">General Production</option>
+                    )}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
+                    Priority
+                  </label>
+                  <select
+                    value={priority}
+                    onChange={(e) => setPriority(e.target.value as ProjectPriority)}
+                    className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 focus:outline-hidden"
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="urgent">Urgent</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
+                  Due Date
+                </label>
+                <input
+                  type="date"
+                  value={dueAt}
+                  onChange={(e) => setDueAt(e.target.value)}
+                  className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 focus:outline-hidden"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
+                  Assign Crew Members
+                </label>
+                <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-2 border border-slate-200 rounded-xl">
+                  {users.map((u) => {
+                    const isSelected = selectedAssigneeIds.includes(u.id);
+                    return (
+                      <button
+                        type="button"
+                        key={u.id}
+                        onClick={() => toggleAssignee(u.id)}
+                        className={`text-xs px-2.5 py-1 rounded-lg border font-medium flex items-center gap-1.5 transition-colors ${
+                          isSelected 
+                            ? 'bg-blue-600 text-white border-blue-600' 
+                            : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                        <span>{u.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
+                  Blocker Reason (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Awaiting client raw asset uploads"
+                  value={blockerReason}
+                  onChange={(e) => setBlockerReason(e.target.value)}
+                  className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 focus:outline-hidden"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsNewTaskOpen(false)}
+                  className="px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded-lg"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs"
+                >
+                  Create Task
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
-

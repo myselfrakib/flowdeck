@@ -211,8 +211,31 @@ export const ProjectTasksTab: React.FC<Props> = ({ project }) => {
         </form>
       )}
 
-      {/* List Mode View */}
-      {viewMode === 'list' && (
+      {/* Empty State */}
+      {filteredTasks.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-10 text-center space-y-3">
+          <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto">
+            <CheckSquare className="w-5 h-5" />
+          </div>
+          <div>
+            <h4 className="text-sm font-bold text-slate-900">No tasks in this workspace</h4>
+            <p className="text-xs text-slate-500 mt-0.5 max-w-sm mx-auto">
+              {projectTasks.length === 0
+                ? 'Create production tasks, post-production checklists, and assign crew members.'
+                : 'No tasks match the active filter.'}
+            </p>
+          </div>
+          {currentUser.role !== 'client' && (
+            <button
+              onClick={() => setIsNewTaskOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add First Task</span>
+            </button>
+          )}
+        </div>
+      ) : viewMode === 'list' ? (
         <div className="space-y-3">
           {filteredTasks.map((task) => {
             const assignees = users.filter(u => task.assigneeIds.includes(u.id));
@@ -321,10 +344,8 @@ export const ProjectTasksTab: React.FC<Props> = ({ project }) => {
             );
           })}
         </div>
-      )}
-
-      {/* Board Mode View (Kanban) */}
-      {viewMode === 'board' && (
+      ) : (
+        /* Board Mode View (Kanban) */
         <div className="space-y-3">
           {/* Mobile Lane Selector Tabs */}
           <div className="md:hidden flex items-center gap-1.5 overflow-x-auto pb-1">
@@ -411,7 +432,6 @@ export const ProjectTasksTab: React.FC<Props> = ({ project }) => {
           </div>
         </div>
       )}
-
     </div>
   );
 };
