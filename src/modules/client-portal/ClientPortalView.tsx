@@ -26,7 +26,8 @@ export const ClientPortalView: React.FC = () => {
     currentUser 
   } = useApp();
 
-  const project = projects[0];
+  const [selectedProjId, setSelectedProjId] = useState<string>(projects[0]?.id || '');
+  const project = projects.find(p => p.id === selectedProjId) || projects[0];
   const versions = project ? editVersions.filter(v => v.projectId === project.id) : [];
   const activeVersion = versions[versions.length - 1] || versions[0];
 
@@ -80,15 +81,44 @@ export const ClientPortalView: React.FC = () => {
           </p>
         </div>
 
-        <button
-          onClick={() => setCurrentView('overview')}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          <span>Exit Client Portal</span>
-        </button>
+        <div className="flex items-center gap-2">
+          {projects.length > 1 && (
+            <select
+              value={project?.id || ''}
+              onChange={(e) => setSelectedProjId(e.target.value)}
+              className="text-xs rounded-xl border border-slate-200 py-1.5 px-3 bg-slate-50 text-slate-700 font-semibold"
+            >
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>{p.code} — {p.title}</option>
+              ))}
+            </select>
+          )}
+          <button
+            onClick={() => setCurrentView('overview')}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Exit Client Portal</span>
+          </button>
+        </div>
       </div>
 
+      {!project || !activeVersion ? (
+        <div className="bg-white rounded-3xl border border-dashed border-slate-300 p-12 text-center space-y-3">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
+            <ShieldCheck className="w-6 h-6" />
+          </div>
+          <h3 className="text-base font-bold text-slate-900">
+            {!project ? 'No active projects available' : `No edit cuts uploaded yet for "${project.title}"`}
+          </h3>
+          <p className="text-xs text-slate-500 max-w-md mx-auto">
+            {!project
+              ? 'Create a project workspace first to share review cuts and deliverables with clients here.'
+              : 'Once the editing team uploads a cut version to Review & Approvals, it will appear here for timestamped client sign-off.'}
+          </p>
+        </div>
+      ) : (
+      <>
       {/* Video Screener & Sign-off Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
@@ -308,6 +338,8 @@ export const ClientPortalView: React.FC = () => {
             </form>
           </div>
         </div>
+      )}
+      </>
       )}
 
     </div>

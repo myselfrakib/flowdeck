@@ -39,7 +39,8 @@ import {
   onFirebaseAuthStateChanged, 
   firebaseSignIn, 
   firebaseSignUp, 
-  firebaseSignOut 
+  firebaseSignOut,
+  firebaseResetPassword
 } from '../services/firebaseAuth';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { 
@@ -176,6 +177,19 @@ interface AppContextType {
   createAgencyInvitation: (data: Omit<AgencyInvitation, 'id' | 'createdAt' | 'status'>) => AgencyInvitation;
   revokeAgencyInvitation: (id: string) => void;
   removeEmployee: (userId: string) => void;
+  resetPassword: (email: string) => Promise<void>;
+  updateBusiness: (updates: Partial<Business>) => void;
+  updateUserProfile: (updates: Partial<Pick<User, 'name' | 'designation' | 'department' | 'bio'>>) => void;
+  updateProject: (projectId: string, updates: Partial<Project>) => void;
+  deleteProject: (projectId: string) => void;
+  updateTask: (taskId: string, updates: Partial<Task>) => void;
+  deleteTask: (taskId: string) => void;
+  deleteClient: (clientId: string) => void;
+  updateShootEvent: (shootId: string, updates: Partial<ShootEvent>) => void;
+  deleteShootEvent: (shootId: string) => void;
+  respondToLeave: (leaveId: string, status: 'approved' | 'rejected') => void;
+  markAllNotificationsAsRead: () => void;
+  createRoom: (room: Omit<Room, 'id' | 'unreadCount'>) => void;
 }
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -382,7 +396,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
 
-  const [leaveRecords, setLeaveRecords] = useState<LeaveRecord[]>(mockLeaveRecords);
+  const [leaveRecords, setLeaveRecords] = useState<LeaveRecord[]>(() => {
+    try {
+      const saved = localStorage.getItem('flowdeck_db_leaves');
+      return saved ? JSON.parse(saved) : mockLeaveRecords;
+    } catch {
+      return mockLeaveRecords;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('flowdeck_db_leaves', JSON.stringify(leaveRecords));
+    } catch {}
+  }, [leaveRecords]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('flowdeck_db_businesses', JSON.stringify(businesses));
+    } catch {}
+  }, [businesses]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('flowdeck_db_active_biz', JSON.stringify(activeBusiness));
+    } catch {}
+  }, [activeBusiness]);
 
   useEffect(() => {
     try {
@@ -559,6 +598,51 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     });
 
+    const unsubMessages = subscribeFirestoreCollection<Message>(COLLECTIONS.MESSAGES, (remoteMsgs) => {
+      if (remoteMsgs && remoteMsgs.length > 0) {
+        const grouped: Record<string, Message[]> = {};
+        const sorted = [...remoteMsgs].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+        sorted.forEach((m) => {
+          if (!grouped[m.roomId]) grouped[m.roomId] = [];
+          grouped[m.roomId].push(m);
+        });
+        setMessages((prev) => {
+          const merged = { ...prev, ...grouped };
+          try {
+            localStorage.setItem('flowdeck_db_messages', JSON.stringify(merged));
+          } catch {}
+          return merged;
+        });
+      }
+    });
+
+    const unsubAssets = subscribeFirestoreCollection<ProjectAsset>(COLLECTIONS.ASSETS, (remoteAssets) => {
+      if (remoteAssets && remoteAssets.length > 0) {
+        setAssets(remoteAssets);
+        try {
+          localStorage.setItem('flowdeck_db_assets', JSON.stringify(remoteAssets));
+        } catch {}
+      }
+    });
+
+    const unsubLogs = subscribeFirestoreCollection<ActivityLog>(COLLECTIONS.LOGS, (remoteLogs) => {
+      if (remoteLogs && remoteLogs.length > 0) {
+        setActivityLogs(remoteLogs);
+        try {
+          localStorage.setItem('flowdeck_db_logs', JSON.stringify(remoteLogs));
+        } catch {}
+      }
+    });
+
+    const unsubLeaves = subscribeFirestoreCollection<LeaveRecord>(COLLECTIONS.LEAVES, (remoteLeaves) => {
+      if (remoteLeaves && remoteLeaves.length > 0) {
+        setLeaveRecords(remoteLeaves);
+        try {
+          localStorage.setItem('flowdeck_db_leaves', JSON.stringify(remoteLeaves));
+        } catch {}
+      }
+    });
+
     return () => {
       unsubUsers();
       unsubBusinesses();
@@ -570,6 +654,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       unsubVersions();
       unsubNotifications();
       unsubInvitations();
+      unsubMessages();
+      unsubAssets();
+      unsubLogs();
+      unsubLeaves();
     };
   }, []);
 
@@ -684,24 +772,53 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Auth Operations
   const login = async (email: string, pass: string) => {
+    const normalizedEmail = email.trim().toLowerCase();
+    let firebaseAuthenticated = false;
     try {
-      await firebaseSignIn(email, pass);
+      await firebaseSignIn(email.trim(), pass);
+      firebaseAuthenticated = true;
     } catch (fbErr: any) {
-      console.warn('Firebase login attempt:', fbErr?.message);
+      const code = fbErr?.code || '';
+      if (
+        code === 'auth/wrong-password' ||
+        code === 'auth/invalid-credential' ||
+        code === 'auth/invalid-email' ||
+        code === 'auth/too-many-requests' ||
+        code === 'auth/user-disabled'
+      ) {
+        throw new Error(
+          code === 'auth/too-many-requests'
+            ? 'Too many failed login attempts. Please wait a few minutes or reset your password.'
+            : 'Invalid email or password. Please check your credentials and try again.'
+        );
+      }
+      if (code === 'auth/user-not-found') {
+        throw new Error('No account found with this email. Please sign up first.');
+      }
+      console.warn('Firebase login warning:', fbErr?.message);
     }
 
-    const matched = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+    const matched = users.find(u => u.email.trim().toLowerCase() === normalizedEmail);
+    if (!matched && !firebaseAuthenticated) {
+      throw new Error('No account found with this email. Please sign up first.');
+    }
+
     const userToLogin: User = matched || {
       id: 'user_' + Math.random().toString(36).substr(2, 9),
       name: email.split('@')[0],
-      email,
+      email: normalizedEmail,
       phone: '+91 98765 43210',
       avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
-      role: 'owner',
-      accountType: 'business_owner',
-      designation: 'Agency Owner & Managing Director',
+      role: 'videographer',
+      accountType: 'employee',
+      designation: 'Team Member',
       availability: 'available'
     };
+
+    if (!matched) {
+      setUsers(prev => [userToLogin, ...prev]);
+      saveFirestoreDoc(COLLECTIONS.USERS, userToLogin);
+    }
 
     setCurrentUser(userToLogin);
     setIsAuthenticated(true);
@@ -731,8 +848,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     try {
-      await firebaseSignUp(data.email, data.password, data.name);
+      await firebaseSignUp(data.email.trim(), data.password, data.name.trim());
     } catch (fbErr: any) {
+      const code = fbErr?.code || '';
+      if (code === 'auth/email-already-in-use') {
+        throw new Error(`The email "${data.email}" is already registered. Please sign in instead.`);
+      }
+      if (code === 'auth/weak-password') {
+        throw new Error('Password is too weak. Please use at least 6 characters.');
+      }
+      if (code === 'auth/invalid-email') {
+        throw new Error('Please enter a valid email address.');
+      }
       console.warn('Firebase signup attempt:', fbErr?.message);
     }
 
@@ -751,8 +878,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const newUser: User = {
       id: 'user_' + Math.random().toString(36).substr(2, 9),
-      name: data.name,
-      email: data.email,
+      name: data.name.trim(),
+      email: normalizedEmail,
       phone: '+91 98765 43210',
       avatar: defaultAvatars[data.role] || defaultAvatars.owner,
       role: data.role,
@@ -760,10 +887,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       designation: data.designation,
       department: data.department,
       availability: 'available',
-      isExternalClient: data.role === 'client'
+      isExternalClient: data.role === 'client',
+      membershipStatus: 'active'
     };
 
-    // If Agency Owner, configure custom business
+    // If Agency Owner, configure custom business and persist to Firestore
     if (data.role === 'owner' && data.agencyName) {
       const customBiz: Business = {
         ...activeBusiness,
@@ -772,8 +900,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         tagline: data.agencyTagline || 'Commercial Video & Creative Production',
         ownerId: newUser.id
       };
+      newUser.businessId = customBiz.id;
       setActiveBusiness(customBiz);
       setBusinesses(prev => [customBiz, ...prev.filter(b => b.id !== customBiz.id)]);
+      saveFirestoreDoc(COLLECTIONS.BUSINESSES, customBiz);
     }
 
     setUsers(prev => [newUser, ...prev]);
@@ -789,11 +919,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const resetPassword = async (email: string) => {
+    const cleanEmail = email.trim();
+    if (!cleanEmail) throw new Error('Please enter your email address first.');
+    try {
+      await firebaseResetPassword(cleanEmail);
+      addToast('Reset Link Sent', `Password reset instructions sent to ${cleanEmail}.`, 'success');
+    } catch (err: any) {
+      const code = err?.code || '';
+      if (code === 'auth/user-not-found') {
+        throw new Error('No Firebase account found for that email address.');
+      }
+      throw new Error(err?.message || 'Unable to send password reset email.');
+    }
+  };
+
   const logout = async () => {
     try {
       await firebaseSignOut();
     } catch {}
     localStorage.removeItem('flowdeck_session');
+    localStorage.removeItem('flowdeck_pending_invite');
+    setCurrentUser(DEFAULT_USER);
+    setPendingInvite(null);
     setIsAuthenticated(false);
   };
 
@@ -1340,7 +1488,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       status: 'pending'
     };
     setLeaveRecords((prev) => [newRecord, ...prev]);
-    saveFirestoreDoc('flowdeck_leave_records', newRecord);
+    saveFirestoreDoc(COLLECTIONS.LEAVES, newRecord);
     addToast('Leave Request Submitted', 'HR and management have been notified of your dates.', 'info');
   };
 
@@ -1800,6 +1948,191 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     addToast('Employee Removed', `${targetUser.name} has been removed from the agency personnel roster.`, 'info');
   };
 
+  const updateBusiness = (updates: Partial<Business>) => {
+    const updatedBiz: Business = { ...activeBusiness, ...updates };
+    setActiveBusiness(updatedBiz);
+    setBusinesses((prev) =>
+      prev.some((b) => b.id === updatedBiz.id)
+        ? prev.map((b) => (b.id === updatedBiz.id ? updatedBiz : b))
+        : [updatedBiz, ...prev]
+    );
+    saveFirestoreDoc(COLLECTIONS.BUSINESSES, updatedBiz);
+    addToast('Settings Saved', 'Business configuration updated and synced.', 'success');
+  };
+
+  const updateUserProfile = (updates: Partial<Pick<User, 'name' | 'designation' | 'department' | 'bio'>>) => {
+    const updatedUser: User = { ...currentUser, ...updates };
+    setCurrentUser(updatedUser);
+    setUsers((prev) =>
+      prev.some((u) => u.id === updatedUser.id)
+        ? prev.map((u) => (u.id === updatedUser.id ? updatedUser : u))
+        : [updatedUser, ...prev]
+    );
+    try {
+      const saved = localStorage.getItem('flowdeck_session');
+      const parsed = saved ? JSON.parse(saved) : {};
+      localStorage.setItem('flowdeck_session', JSON.stringify({ ...parsed, isAuthenticated: true, user: updatedUser }));
+    } catch {}
+    saveFirestoreDoc(COLLECTIONS.USERS, updatedUser);
+    addToast('Profile Updated', 'Your profile details have been saved.', 'success');
+  };
+
+  const updateProject = (projectId: string, updates: Partial<Project>) => {
+    let updatedProj: Project | null = null;
+    setProjects((prev) =>
+      prev.map((p) => {
+        if (p.id === projectId) {
+          updatedProj = { ...p, ...updates };
+          return updatedProj;
+        }
+        return p;
+      })
+    );
+    if (updatedProj) {
+      saveFirestoreDoc(COLLECTIONS.PROJECTS, updatedProj);
+      addToast('Project Updated', `"${(updatedProj as Project).title}" changes saved.`, 'success');
+    }
+  };
+
+  const deleteProject = (projectId: string) => {
+    const target = projects.find((p) => p.id === projectId);
+    setProjects((prev) => prev.filter((p) => p.id !== projectId));
+    setTasks((prev) => {
+      prev.filter((t) => t.projectId === projectId).forEach((t) => deleteFirestoreDoc(COLLECTIONS.TASKS, t.id));
+      return prev.filter((t) => t.projectId !== projectId);
+    });
+    setRooms((prev) => {
+      prev.filter((r) => r.projectId === projectId).forEach((r) => deleteFirestoreDoc(COLLECTIONS.ROOMS, r.id));
+      return prev.filter((r) => r.projectId !== projectId);
+    });
+    deleteFirestoreDoc(COLLECTIONS.PROJECTS, projectId);
+    if (selectedProjectId === projectId) {
+      setSelectedProjectId(null);
+      setCurrentView('projects');
+    }
+    if (target) {
+      addToast('Project Deleted', `"${target.title}" and its workspace items were removed.`, 'info');
+    }
+  };
+
+  const updateTask = (taskId: string, updates: Partial<Task>) => {
+    let updatedTaskObj: Task | null = null;
+    setTasks((prev) =>
+      prev.map((t) => {
+        if (t.id === taskId) {
+          updatedTaskObj = { ...t, ...updates };
+          return updatedTaskObj;
+        }
+        return t;
+      })
+    );
+    if (updatedTaskObj) {
+      saveFirestoreDoc(COLLECTIONS.TASKS, updatedTaskObj);
+      addToast('Task Updated', `"${(updatedTaskObj as Task).title}" saved.`, 'success');
+    }
+  };
+
+  const deleteTask = (taskId: string) => {
+    const target = tasks.find((t) => t.id === taskId);
+    setTasks((prev) => prev.filter((t) => t.id !== taskId));
+    deleteFirestoreDoc(COLLECTIONS.TASKS, taskId);
+    if (target) {
+      addToast('Task Deleted', `"${target.title}" removed.`, 'info');
+    }
+  };
+
+  const deleteClient = (clientId: string) => {
+    const target = clients.find((c) => c.id === clientId);
+    setClients((prev) => prev.filter((c) => c.id !== clientId));
+    deleteFirestoreDoc(COLLECTIONS.CLIENTS, clientId);
+    if (target) {
+      addToast('Client Removed', `"${target.brandName}" removed from client directory.`, 'info');
+    }
+  };
+
+  const updateShootEvent = (shootId: string, updates: Partial<ShootEvent>) => {
+    let updatedShoot: ShootEvent | null = null;
+    setShootEvents((prev) =>
+      prev.map((s) => {
+        if (s.id === shootId) {
+          updatedShoot = { ...s, ...updates };
+          return updatedShoot;
+        }
+        return s;
+      })
+    );
+    if (updatedShoot) {
+      saveFirestoreDoc(COLLECTIONS.SHOOTS, updatedShoot);
+      addToast('Event Updated', `"${(updatedShoot as ShootEvent).title}" updated.`, 'success');
+    }
+  };
+
+  const deleteShootEvent = (shootId: string) => {
+    const target = shootEvents.find((s) => s.id === shootId);
+    setShootEvents((prev) => prev.filter((s) => s.id !== shootId));
+    deleteFirestoreDoc(COLLECTIONS.SHOOTS, shootId);
+    if (target) {
+      addToast('Event Cancelled', `"${target.title}" removed from calendar.`, 'info');
+    }
+  };
+
+  const respondToLeave = (leaveId: string, status: 'approved' | 'rejected') => {
+    let updatedLeave: LeaveRecord | null = null;
+    setLeaveRecords((prev) =>
+      prev.map((l) => {
+        if (l.id === leaveId) {
+          updatedLeave = { ...l, status };
+          return updatedLeave;
+        }
+        return l;
+      })
+    );
+    if (updatedLeave) {
+      saveFirestoreDoc(COLLECTIONS.LEAVES, updatedLeave);
+      const targetUser = users.find((u) => u.id === (updatedLeave as LeaveRecord).userId);
+      const notif: NotificationItem = {
+        id: 'notif_leave_' + Math.random().toString(36).substr(2, 9),
+        recipientId: (updatedLeave as LeaveRecord).userId,
+        title: `Leave Request ${status === 'approved' ? 'Approved' : 'Declined'}`,
+        message: `Your leave from ${(updatedLeave as LeaveRecord).startDate} to ${(updatedLeave as LeaveRecord).endDate} was ${status}.`,
+        type: status === 'approved' ? 'approved' : 'mention',
+        createdAt: new Date().toISOString(),
+        read: false
+      };
+      setNotifications((prev) => [notif, ...prev]);
+      saveFirestoreDoc(COLLECTIONS.NOTIFICATIONS, notif);
+      addToast(
+        `Leave ${status === 'approved' ? 'Approved' : 'Rejected'}`,
+        `${targetUser?.name || 'Employee'}'s leave request has been ${status}.`,
+        status === 'approved' ? 'success' : 'warning'
+      );
+    }
+  };
+
+  const markAllNotificationsAsRead = () => {
+    setNotifications((prev) =>
+      prev.map((n) => {
+        if (!n.read && (n.recipientId === currentUser.id || !n.recipientId || n.recipientId === 'all')) {
+          const updated = { ...n, read: true };
+          saveFirestoreDoc(COLLECTIONS.NOTIFICATIONS, updated);
+          return updated;
+        }
+        return n;
+      })
+    );
+  };
+
+  const createRoom = (room: Omit<Room, 'id' | 'unreadCount'>) => {
+    const newRoom: Room = {
+      ...room,
+      id: 'room_' + Math.random().toString(36).substr(2, 9),
+      unreadCount: 0
+    };
+    setRooms((prev) => [newRoom, ...prev]);
+    saveFirestoreDoc(COLLECTIONS.ROOMS, newRoom);
+    addToast('Channel Created', `"#${newRoom.name}" room is ready.`, 'success');
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -1878,7 +2211,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         invitations,
         createAgencyInvitation,
         revokeAgencyInvitation,
-        removeEmployee
+        removeEmployee,
+        resetPassword,
+        updateBusiness,
+        updateUserProfile,
+        updateProject,
+        deleteProject,
+        updateTask,
+        deleteTask,
+        deleteClient,
+        updateShootEvent,
+        deleteShootEvent,
+        respondToLeave,
+        markAllNotificationsAsRead,
+        createRoom
       }}
     >
       {children}

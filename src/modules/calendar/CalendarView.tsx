@@ -44,6 +44,7 @@ export const CalendarView: React.FC = () => {
     createShootEvent,
     createTask,
     rescheduleShoot,
+    deleteShootEvent,
     updateTaskStatus
   } = useApp();
 
@@ -679,6 +680,16 @@ export const CalendarView: React.FC = () => {
                         <RotateCcw className="w-3 h-3 text-amber-600" />
                         <span>Reschedule</span>
                       </button>
+
+                      {currentUser.role !== 'client' && (
+                        <button
+                          onClick={() => deleteShootEvent(shoot.id)}
+                          className="p-1.5 rounded-xl border border-rose-200 hover:bg-rose-50 text-rose-600 transition-colors"
+                          title="Cancel & Delete Event"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 );

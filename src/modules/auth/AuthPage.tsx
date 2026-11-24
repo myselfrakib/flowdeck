@@ -101,11 +101,13 @@ const ROLE_OPTIONS: RoleOption[] = [
 ];
 
 export const AuthPage: React.FC = () => {
-  const { login, signup, addToast, pendingInvite, users } = useApp();
+  const { login, signup, resetPassword, addToast, pendingInvite, users } = useApp();
 
   const [mode, setMode] = useState<'login' | 'signup'>('signup');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [resetSuccessMsg, setResetSuccessMsg] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   // Form Fields
   const [name, setName] = useState('');
@@ -280,20 +282,47 @@ export const AuthPage: React.FC = () => {
                 Password
               </label>
               {mode === 'login' && (
-                <span className="text-[11px] text-blue-600 hover:text-blue-700 cursor-pointer">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setErrorMsg(null);
+                    setResetSuccessMsg(null);
+                    try {
+                      await resetPassword(email);
+                      setResetSuccessMsg(`Password reset email sent to ${email.trim()}. Check your inbox.`);
+                    } catch (err: any) {
+                      setErrorMsg(err?.message || 'Enter your email address above first.');
+                    }
+                  }}
+                  className="text-[11px] text-blue-600 hover:text-blue-700 font-semibold cursor-pointer"
+                >
                   Forgot?
-                </span>
+                </button>
               )}
             </div>
-            <input
-              type="password"
-              required
-              minLength={6}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="w-full text-xs sm:text-sm px-3 py-2 rounded-lg border border-slate-200 focus:outline-hidden focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition-colors"
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                required
+                minLength={6}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full text-xs sm:text-sm px-3 py-2 pr-14 rounded-lg border border-slate-200 focus:outline-hidden focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition-colors"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-slate-500 hover:text-slate-800"
+              >
+                {showPassword ? 'Hide' : 'Show'}
+              </button>
+            </div>
+            {resetSuccessMsg && (
+              <p className="text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-2.5 py-1.5 mt-2">
+                {resetSuccessMsg}
+              </p>
+            )}
           </div>
 
           {/* Role Selector on Signup */}

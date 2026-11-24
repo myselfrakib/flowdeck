@@ -10,7 +10,8 @@ import {
   ExternalLink,
   ShieldAlert,
   X,
-  ArrowLeft
+  ArrowLeft,
+  Plus
 } from 'lucide-react';
 import { Message, Room } from '../../types';
 
@@ -20,11 +21,18 @@ export const GlobalRoomsView: React.FC = () => {
     messages, 
     sendMessage, 
     convertMessageToTask, 
+    createRoom,
+    activeBusiness,
     projects, 
     users, 
     currentUser, 
     openProject 
   } = useApp();
+
+  const [isNewRoomOpen, setIsNewRoomOpen] = useState(false);
+  const [newRoomName, setNewRoomName] = useState('');
+  const [newRoomDesc, setNewRoomDesc] = useState('');
+  const [newRoomVisibility, setNewRoomVisibility] = useState<'internal' | 'client_visible'>('internal');
 
   const isClient = currentUser.role === 'client';
   const visibleRooms = rooms.filter(r => !isClient || r.visibility === 'client_visible');
@@ -78,10 +86,19 @@ export const GlobalRoomsView: React.FC = () => {
         <div className={`w-full md:w-80 border-r border-slate-200/80 bg-slate-50/50 flex flex-col shrink-0 ${
           mobileView === 'chat' ? 'hidden md:flex' : 'flex'
         }`}>
-          <div className="p-3.5 border-b border-slate-200/80">
+          <div className="p-3.5 border-b border-slate-200/80 flex items-center justify-between">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
               Conversations & Inboxes
             </span>
+            {!isClient && (
+              <button
+                onClick={() => setIsNewRoomOpen(true)}
+                className="text-[11px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-0.5"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>New</span>
+              </button>
+            )}
           </div>
 
           <div className="flex-1 overflow-y-auto p-2 space-y-1">
@@ -261,6 +278,69 @@ export const GlobalRoomsView: React.FC = () => {
               <div className="flex justify-end gap-2 pt-2">
                 <button type="button" onClick={() => setConvertingMessage(null)} className="text-xs text-slate-600 px-3 py-1.5">Cancel</button>
                 <button type="submit" className="text-xs font-bold text-white bg-blue-600 px-4 py-1.5 rounded-lg">Create Task</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Create Room Modal */}
+      {isNewRoomOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl p-5 shadow-2xl border border-slate-200 max-w-md w-full space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <h4 className="text-sm font-bold text-slate-900">Create Discussion Room</h4>
+              <button onClick={() => setIsNewRoomOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!newRoomName.trim()) return;
+                createRoom({
+                  businessId: activeBusiness.id,
+                  projectId: projects[0]?.id || 'proj_general',
+                  name: newRoomName.trim(),
+                  description: newRoomDesc.trim() || 'Agency discussion channel',
+                  roomType: newRoomVisibility === 'client_visible' ? 'client_discussion' : 'internal_planning',
+                  visibility: newRoomVisibility,
+                  memberIds: [currentUser.id],
+                  lastMessageText: 'Channel created.',
+                  lastMessageTime: 'Just now'
+                });
+                setNewRoomName('');
+                setNewRoomDesc('');
+                setIsNewRoomOpen(false);
+              }}
+              className="space-y-3"
+            >
+              <input
+                type="text"
+                required
+                value={newRoomName}
+                onChange={(e) => setNewRoomName(e.target.value)}
+                placeholder="Room name (e.g. Post-Production Sync)"
+                className="w-full text-xs p-2.5 rounded-xl border border-slate-200"
+              />
+              <input
+                type="text"
+                value={newRoomDesc}
+                onChange={(e) => setNewRoomDesc(e.target.value)}
+                placeholder="Purpose or description"
+                className="w-full text-xs p-2.5 rounded-xl border border-slate-200"
+              />
+              <select
+                value={newRoomVisibility}
+                onChange={(e) => setNewRoomVisibility(e.target.value as any)}
+                className="w-full text-xs p-2.5 rounded-xl border border-slate-200 bg-white"
+              >
+                <option value="internal">Internal Crew Only</option>
+                <option value="client_visible">Client-Visible Channel</option>
+              </select>
+              <div className="flex justify-end gap-2 pt-2">
+                <button type="button" onClick={() => setIsNewRoomOpen(false)} className="text-xs text-slate-600 px-3 py-1.5">Cancel</button>
+                <button type="submit" className="text-xs font-bold text-white bg-blue-600 px-4 py-1.5 rounded-xl">Create Room</button>
               </div>
             </form>
           </div>

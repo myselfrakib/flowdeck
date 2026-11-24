@@ -30,7 +30,8 @@ export const COLLECTIONS = {
   USERS: 'flowdeck_users',
   BUSINESSES: 'flowdeck_businesses',
   NOTIFICATIONS: 'flowdeck_notifications',
-  INVITATIONS: 'flowdeck_invitations'
+  INVITATIONS: 'flowdeck_invitations',
+  LEAVES: 'flowdeck_leave_records'
 } as const;
 
 /**

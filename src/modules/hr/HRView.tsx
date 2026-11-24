@@ -4,7 +4,7 @@ import { ShieldAlert, Calendar, Plus, CheckCircle2, AlertCircle, X } from 'lucid
 import { LeaveRecord } from '../../types';
 
 export const HRView: React.FC = () => {
-  const { currentUser, leaveRecords, applyForLeave, users } = useApp();
+  const { currentUser, leaveRecords, applyForLeave, respondToLeave, users } = useApp();
 
   const isAuthorized = currentUser.role === 'owner' || currentUser.role === 'hr_manager';
 
@@ -75,7 +75,12 @@ export const HRView: React.FC = () => {
         </h3>
 
         <div className="space-y-3">
-          {leaveRecords.map((rec) => {
+          {leaveRecords.length === 0 ? (
+            <div className="p-8 text-center rounded-2xl border border-dashed border-slate-200 text-xs text-slate-500">
+              No leave requests submitted yet. Click "Submit Leave Request" to add one.
+            </div>
+          ) : (
+            leaveRecords.map((rec) => {
             const user = users.find(u => u.id === rec.userId);
             return (
               <div
@@ -83,9 +88,9 @@ export const HRView: React.FC = () => {
                 className="p-4 rounded-2xl border border-slate-200/80 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
               >
                 <div className="flex items-center gap-3">
-                  <img src={user?.avatar} alt={user?.name} className="w-10 h-10 rounded-full object-cover" />
+                  <img src={user?.avatar || currentUser.avatar} alt={user?.name || 'Employee'} className="w-10 h-10 rounded-full object-cover" />
                   <div>
-                    <h4 className="text-xs sm:text-sm font-bold text-slate-800">{user?.name}</h4>
+                    <h4 className="text-xs sm:text-sm font-bold text-slate-800">{user?.name || 'Team Member'}</h4>
                     <p className="text-xs text-slate-500 mt-0.5">
                       Type: <strong className="capitalize">{rec.type.replace('_', ' ')}</strong> • {rec.startDate} to {rec.endDate}
                     </p>
@@ -93,14 +98,39 @@ export const HRView: React.FC = () => {
                   </div>
                 </div>
 
-                <span className={`text-xs font-bold px-2.5 py-1 rounded-full shrink-0 ${
-                  rec.status === 'approved' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
-                }`}>
-                  {rec.status.toUpperCase()}
-                </span>
+                <div className="flex items-center gap-2 shrink-0">
+                  {rec.status === 'pending' && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => respondToLeave(rec.id, 'approved')}
+                        className="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-2xs transition-colors"
+                      >
+                        Approve
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => respondToLeave(rec.id, 'rejected')}
+                        className="px-3 py-1 rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold transition-colors"
+                      >
+                        Reject
+                      </button>
+                    </>
+                  )}
+                  <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
+                    rec.status === 'approved'
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : rec.status === 'rejected'
+                      ? 'bg-rose-100 text-rose-800'
+                      : 'bg-amber-100 text-amber-800'
+                  }`}>
+                    {rec.status.toUpperCase()}
+                  </span>
+                </div>
               </div>
             );
-          })}
+          })
+          )}
         </div>
       </div>
 

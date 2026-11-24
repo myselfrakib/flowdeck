@@ -10,15 +10,18 @@ import {
   ExternalLink,
   Plus,
   AlertTriangle,
-  X
+  X,
+  Trash2,
+  Search
 } from 'lucide-react';
 import { TaskStatus, ProjectPriority } from '../../types';
 
 export const TasksView: React.FC = () => {
-  const { tasks, projects, users, updateTaskStatus, openProject, createTask, currentUser } = useApp();
+  const { tasks, projects, users, updateTaskStatus, deleteTask, openProject, createTask, currentUser } = useApp();
   const [viewMode, setViewMode] = useState<'list' | 'board'>('list');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [projectFilter, setProjectFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [isNewTaskOpen, setIsNewTaskOpen] = useState(false);
 
   // New Task form state
@@ -33,7 +36,10 @@ export const TasksView: React.FC = () => {
   const filteredTasks = tasks.filter((t) => {
     const matchStatus = statusFilter === 'all' || t.status === statusFilter;
     const matchProject = projectFilter === 'all' || t.projectId === projectFilter;
-    return matchStatus && matchProject;
+    const matchSearch = !searchQuery.trim() ||
+      t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (t.description || '').toLowerCase().includes(searchQuery.toLowerCase());
+    return matchStatus && matchProject && matchSearch;
   });
 
   const columns: { status: TaskStatus; label: string }[] = [
@@ -136,6 +142,16 @@ export const TasksView: React.FC = () => {
 
       {/* Filter bar */}
       <div className="bg-white rounded-2xl border border-slate-200/80 p-3.5 shadow-xs flex items-center gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-[180px]">
+          <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search tasks..."
+            className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 bg-slate-50 text-slate-700 focus:outline-hidden focus:border-blue-500"
+          />
+        </div>
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
@@ -232,6 +248,16 @@ export const TasksView: React.FC = () => {
                       <option value="in_review">In Review</option>
                       <option value="completed">Completed</option>
                     </select>
+                    {currentUser.role !== 'client' && (
+                      <button
+                        type="button"
+                        onClick={() => deleteTask(task.id)}
+                        title="Delete task"
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
 

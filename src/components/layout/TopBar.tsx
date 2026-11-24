@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import { 
   Building2, 
@@ -42,18 +42,35 @@ export const TopBar: React.FC = () => {
     isPhoneModalOpen,
     setIsPhoneModalOpen,
     acceptAgencyInvite,
-    rejectAgencyInvite
+    rejectAgencyInvite,
+    markAllNotificationsAsRead
   } = useApp();
 
   const [isBizMenuOpen, setIsBizMenuOpen] = useState(false);
   const [isPersonaMenuOpen, setIsPersonaMenuOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
+  const headerRef = useRef<HTMLElement>(null);
 
-  const unreadNotifs = notifications.filter(n => !n.read);
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (headerRef.current && !headerRef.current.contains(e.target as Node)) {
+        setIsBizMenuOpen(false);
+        setIsPersonaMenuOpen(false);
+        setIsNotifOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
+
+  const userNotifications = notifications.filter(
+    (n) => !n.recipientId || n.recipientId === currentUser.id || n.recipientId === 'all'
+  );
+  const unreadNotifs = userNotifications.filter((n) => !n.read);
 
   return (
-    <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-3 sm:px-6 py-2 sm:py-2.5 safe-top">
+    <header ref={headerRef} className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-3 sm:px-6 py-2 sm:py-2.5 safe-top">
       <div className="flex items-center justify-between gap-2 sm:gap-4">
         
         {/* Left: Business Switcher */}
@@ -271,10 +288,21 @@ export const TopBar: React.FC = () => {
                   <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
                     Notifications ({unreadNotifs.length} new)
                   </span>
-                  <span className="text-[11px] text-blue-600 font-medium">Clear all</span>
+                  <button
+                    type="button"
+                    onClick={() => markAllNotificationsAsRead()}
+                    className="text-[11px] text-blue-600 hover:text-blue-800 font-semibold cursor-pointer"
+                  >
+                    Mark all read
+                  </button>
                 </div>
                 <div className="max-h-80 overflow-y-auto divide-y divide-slate-100">
-                  {notifications.map((notif) => {
+                  {userNotifications.length === 0 ? (
+                    <div className="p-6 text-center text-xs text-slate-400">
+                      No notifications yet.
+                    </div>
+                  ) : (
+                  userNotifications.map((notif) => {
                     const isInviteNotif = notif.title.toLowerCase().includes('invitation') && pendingInvite;
                     return (
                       <div
@@ -325,7 +353,8 @@ export const TopBar: React.FC = () => {
                         )}
                       </div>
                     );
-                  })}
+                  })
+                  )}
                 </div>
               </div>
             )}

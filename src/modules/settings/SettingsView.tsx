@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { 
   Settings, 
@@ -23,12 +23,13 @@ import { ProfilePhotoModal } from '../../components/shared/ProfilePhotoModal';
 export const SettingsView: React.FC = () => {
   const { 
     activeBusiness, 
-    setActiveBusiness, 
+    updateBusiness, 
     addToast, 
     setIsAuthModalOpen, 
     firebaseUser,
     currentUser,
     updateUserAvatar,
+    updateUserProfile,
     setIsPhoneModalOpen
   } = useApp();
 
@@ -38,16 +39,47 @@ export const SettingsView: React.FC = () => {
   const [storageProvider, setStorageProvider] = useState(activeBusiness.storageProvider);
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
 
+  const [profileName, setProfileName] = useState(currentUser.name);
+  const [profileDesignation, setProfileDesignation] = useState(currentUser.designation);
+  const [profileDepartment, setProfileDepartment] = useState(currentUser.department || 'Operations');
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+
+  useEffect(() => {
+    setBizName(activeBusiness.name);
+    setTagline(activeBusiness.tagline);
+    setTimezone(activeBusiness.timezone);
+    setStorageProvider(activeBusiness.storageProvider);
+  }, [activeBusiness]);
+
+  useEffect(() => {
+    setProfileName(currentUser.name);
+    setProfileDesignation(currentUser.designation);
+    setProfileDepartment(currentUser.department || 'Operations');
+  }, [currentUser]);
+
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    setActiveBusiness({
-      ...activeBusiness,
-      name: bizName,
-      tagline,
+    if (!bizName.trim()) {
+      addToast('Validation Error', 'Agency name cannot be empty.', 'warning');
+      return;
+    }
+    updateBusiness({
+      name: bizName.trim(),
+      tagline: tagline.trim(),
       timezone,
       storageProvider: storageProvider as any
     });
-    addToast('Settings Saved', 'Business configuration updated successfully.', 'success');
+  };
+
+  const handleProfileSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!profileName.trim()) return;
+    updateUserProfile({
+      name: profileName.trim(),
+      designation: profileDesignation.trim() || currentUser.designation,
+      department: profileDepartment.trim() || 'Operations'
+    });
+    setIsEditingProfile(false);
   };
 
   // Permission table from Blueprint Page 20
@@ -119,6 +151,15 @@ export const SettingsView: React.FC = () => {
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
+              onClick={() => setIsEditingProfile(!isEditingProfile)}
+              className="px-3.5 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs flex items-center gap-1.5 transition-all active:scale-95 shadow-2xs"
+            >
+              <UserIcon className="w-4 h-4 text-blue-600" />
+              <span>{isEditingProfile ? 'Cancel Edit' : 'Edit Name / Role'}</span>
+            </button>
+
+            <button
+              type="button"
               onClick={() => setIsPhoneModalOpen(true)}
               className="px-3.5 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs flex items-center gap-1.5 transition-all active:scale-95 shadow-2xs"
             >
@@ -136,6 +177,47 @@ export const SettingsView: React.FC = () => {
             </button>
           </div>
         </div>
+
+        {isEditingProfile && (
+          <form onSubmit={handleProfileSave} className="mt-4 pt-4 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+            <div>
+              <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Full Name</label>
+              <input
+                type="text"
+                required
+                value={profileName}
+                onChange={(e) => setProfileName(e.target.value)}
+                className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 focus:outline-hidden focus:border-blue-600"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Designation</label>
+              <input
+                type="text"
+                value={profileDesignation}
+                onChange={(e) => setProfileDesignation(e.target.value)}
+                className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 focus:outline-hidden focus:border-blue-600"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="flex-1">
+                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Department</label>
+                <input
+                  type="text"
+                  value={profileDepartment}
+                  onChange={(e) => setProfileDepartment(e.target.value)}
+                  className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 focus:outline-hidden focus:border-blue-600"
+                />
+              </div>
+              <button
+                type="submit"
+                className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs shrink-0"
+              >
+                Save
+              </button>
+            </div>
+          </form>
+        )}
       </div>
 
       {/* Profile & Storage Form */}
@@ -180,6 +262,7 @@ export const SettingsView: React.FC = () => {
                 onChange={(e) => setTimezone(e.target.value)}
                 className="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200"
               >
+                <option value="Asia/Kolkata (IST)">Asia/Kolkata (IST)</option>
                 <option value="America/New_York (EST)">America/New_York (EST)</option>
                 <option value="America/Los_Angeles (PST)">America/Los_Angeles (PST)</option>
                 <option value="Europe/London (GMT)">Europe/London (GMT)</option>
