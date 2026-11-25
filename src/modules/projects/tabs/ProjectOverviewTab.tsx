@@ -85,7 +85,7 @@ export const ProjectOverviewTab: React.FC<Props> = ({ project }) => {
           <div className="p-3 bg-slate-50/70 rounded-xl border border-slate-200/60">
             <span className="text-[10px] font-bold uppercase text-slate-400">Target Platforms</span>
             <p className="text-xs sm:text-sm font-bold text-slate-800 mt-0.5 truncate">
-              {project.targetPlatforms.join(', ')}
+              {(project.targetPlatforms || []).join(', ') || 'Multi-Platform'}
             </p>
           </div>
         </div>
@@ -97,7 +97,7 @@ export const ProjectOverviewTab: React.FC<Props> = ({ project }) => {
             Project Milestones & KPIs
           </h4>
           <div className="space-y-2">
-            {project.objectives.map((obj, i) => (
+            {(project.objectives || []).map((obj, i) => (
               <div key={i} className="flex items-start gap-2.5 p-2.5 rounded-xl bg-slate-50/50 border border-slate-100 text-xs text-slate-700">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                 <span className="leading-snug">{obj}</span>
@@ -107,13 +107,13 @@ export const ProjectOverviewTab: React.FC<Props> = ({ project }) => {
         </div>
 
         {/* Reference Links */}
-        {project.referenceLinks.length > 0 && (
+        {(project.referenceLinks || []).length > 0 && (
           <div className="pt-3 border-t border-slate-100">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
               Approved Client Reference Vault
             </span>
             <div className="flex flex-wrap gap-2 mt-2">
-              {project.referenceLinks.map((link, i) => (
+              {(project.referenceLinks || []).map((link, i) => (
                 <a
                   key={i}
                   href={link}
@@ -122,7 +122,7 @@ export const ProjectOverviewTab: React.FC<Props> = ({ project }) => {
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 text-xs font-medium transition-colors border border-blue-200"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
-                  <span>{link.includes('drive.google.com') ? 'Google Drive Media Folder' : 'External Review / Moodboard'}</span>
+                  <span>{(link || '').includes('drive.google.com') ? 'Google Drive Media Folder' : 'External Review / Moodboard'}</span>
                 </a>
               ))}
             </div>
