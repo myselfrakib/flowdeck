@@ -11,7 +11,8 @@ interface AppShellProps {
 }
 
 export const AppShell: React.FC<AppShellProps> = ({ children }) => {
-  const { pendingInvite, acceptAgencyInvite, rejectAgencyInvite } = useApp();
+  const { pendingInvite, acceptAgencyInvite, rejectAgencyInvite, currentView, activeProjectTab } = useApp();
+  const hideBottomNav = currentView === 'project_detail' && activeProjectTab === 'rooms';
 
   return (
     <div className="flex min-h-screen bg-[#F4F7FB] text-[#102A43] antialiased">
@@ -19,7 +20,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
       <DesktopSidebar />
 
       {/* Main View Area */}
-      <div className="flex-1 flex flex-col min-w-0 pb-16 lg:pb-0">
+      <div className={`flex-1 flex flex-col min-w-0 ${hideBottomNav ? 'pb-0' : 'pb-16 lg:pb-0'}`}>
         <TopBar />
 
         {/* Global Pending Invitation Banner */}

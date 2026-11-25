@@ -27,10 +27,15 @@ export const MobileBottomNav: React.FC = () => {
     currentUser, 
     rooms, 
     unreadProjectIds,
+    activeProjectTab,
     logout
   } = useApp();
 
   const [isMoreOpen, setIsMoreOpen] = useState(false);
+
+  if (currentView === 'project_detail' && activeProjectTab === 'rooms') {
+    return null;
+  }
 
   const unreadCount = rooms.reduce((acc, r) => acc + (r.unreadCount || 0), 0);
   const isHRAuthorized = currentUser.role === 'owner' || currentUser.role === 'hr_manager';
