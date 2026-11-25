@@ -60,7 +60,7 @@ export const ProjectScheduleTab: React.FC<Props> = ({ project }) => {
         userId: uid,
         role: u?.designation || 'Crew Member',
         callTime: startTime,
-        status: uid === currentUser.id ? ('accepted' as const) : ('invited' as const)
+        status: uid === currentUser.id ? ('accepted' as const) : ('pending' as const)
       };
     });
 
@@ -70,8 +70,10 @@ export const ProjectScheduleTab: React.FC<Props> = ({ project }) => {
       startAt,
       endAt,
       location: shootLocation.trim() || 'Studio Location TBD',
+      locationAddress: shootLocation.trim() || 'Studio Location TBD',
       mapUrl: 'https://maps.google.com',
       wardrobeNotes: wardrobeNotes.trim() || 'Standard production attire.',
+      directorNotes: 'Please arrive 15 minutes before call time for safety & equipment briefing.',
       propsEquipment: equipmentNotes.split(',').map((s) => s.trim()).filter(Boolean),
       status: 'proposed',
       participants

@@ -2149,7 +2149,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       action: 'started discussion room',
       target: `#${newRoom.name}`,
       timestamp: 'Just now',
-      category: 'message'
+      category: 'room'
     };
     setActivityLogs((prev) => [newLog, ...prev]);
     saveFirestoreDoc(COLLECTIONS.LOGS, newLog);
