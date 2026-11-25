@@ -37,19 +37,19 @@ export const GlobalSearchModal: React.FC = () => {
   const q = query.toLowerCase().trim();
 
   const filteredProjects = q
-    ? projects.filter(p => p.title.toLowerCase().includes(q) || p.clientName.toLowerCase().includes(q) || p.code.toLowerCase().includes(q))
+    ? projects.filter(p => (p.title || '').toLowerCase().includes(q) || (p.clientName || '').toLowerCase().includes(q) || (p.code || '').toLowerCase().includes(q))
     : projects.slice(0, 3);
 
   const filteredTasks = q
-    ? tasks.filter(t => t.title.toLowerCase().includes(q) || t.description?.toLowerCase().includes(q))
+    ? tasks.filter(t => (t.title || '').toLowerCase().includes(q) || (t.description || '').toLowerCase().includes(q))
     : tasks.slice(0, 3);
 
   const filteredRooms = q
-    ? rooms.filter(r => r.name.toLowerCase().includes(q) || r.description.toLowerCase().includes(q))
+    ? rooms.filter(r => (r.name || '').toLowerCase().includes(q) || (r.description || '').toLowerCase().includes(q))
     : rooms.slice(0, 3);
 
   const filteredUsers = q
-    ? users.filter(u => u.name.toLowerCase().includes(q) || u.phone.includes(q) || u.designation.toLowerCase().includes(q) || u.role.toLowerCase().includes(q))
+    ? users.filter(u => (u.name || '').toLowerCase().includes(q) || (u.phone || '').includes(q) || (u.designation || '').toLowerCase().includes(q) || (u.role || '').toLowerCase().includes(q))
     : users.slice(0, 3);
 
   return (

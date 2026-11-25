@@ -36,7 +36,7 @@ export const OverviewView: React.FC = () => {
   const blockedTasks = tasks.filter(t => t.status === 'blocked');
   
   // Personal assigned tasks
-  const myTasks = tasks.filter(t => t.assigneeIds.includes(currentUser.id) && t.status !== 'completed');
+  const myTasks = tasks.filter(t => (t.assigneeIds || []).includes(currentUser.id) && t.status !== 'completed');
 
   return (
     <div className="space-y-6">

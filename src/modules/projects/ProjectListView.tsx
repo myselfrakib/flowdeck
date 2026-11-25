@@ -31,10 +31,11 @@ export const ProjectListView: React.FC = () => {
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
 
   const filteredProjects = projects.filter((p) => {
+    const q = searchTerm.toLowerCase();
     const matchesSearch = 
-      p.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.code.toLowerCase().includes(searchTerm.toLowerCase());
+      (p.title || '').toLowerCase().includes(q) ||
+      (p.clientName || '').toLowerCase().includes(q) ||
+      (p.code || '').toLowerCase().includes(q);
     
     const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
     const matchesType = typeFilter === 'all' || p.type === typeFilter;

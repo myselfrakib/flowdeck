@@ -209,7 +209,7 @@ export const TasksView: React.FC = () => {
         <div className="space-y-3">
           {filteredTasks.map((task) => {
             const project = projects.find(p => p.id === task.projectId);
-            const assignees = users.filter(u => task.assigneeIds.includes(u.id));
+            const assignees = users.filter(u => (task.assigneeIds || []).includes(u.id));
 
             return (
               <div

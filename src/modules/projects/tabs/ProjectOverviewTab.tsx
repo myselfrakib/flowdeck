@@ -23,7 +23,7 @@ interface Props {
 export const ProjectOverviewTab: React.FC<Props> = ({ project }) => {
   const { users, currentUser, setActiveProjectTab, updateProjectStatus } = useApp();
 
-  const assignedUsers = users.filter(u => project.teamIds.includes(u.id));
+  const assignedUsers = users.filter(u => (project.teamIds || []).includes(u.id));
   const leadUser = users.find(u => u.id === project.leadId);
 
   return (

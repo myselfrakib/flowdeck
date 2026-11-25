@@ -64,12 +64,13 @@ export const ClientDirectoryView: React.FC = () => {
   const avatarOptions = ['🌸', '⚡', '🏎️', '☕', '☀️', '🎧', '💎', '🚀', '🌿', '👗', '🍔', '🎬', '✨', '🪐', '👟'];
 
   const filteredClients = clients.filter((c) => {
+    const q = searchTerm.toLowerCase();
     const matchesSearch = 
-      c.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.brandName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.contactPerson.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.phone.includes(searchTerm);
+      (c.companyName || '').toLowerCase().includes(q) ||
+      (c.brandName || '').toLowerCase().includes(q) ||
+      (c.contactPerson || '').toLowerCase().includes(q) ||
+      (c.email || '').toLowerCase().includes(q) ||
+      (c.phone || '').includes(searchTerm);
     
     const matchesStatus = statusFilter === 'all' || c.status === statusFilter;
     return matchesSearch && matchesStatus;

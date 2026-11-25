@@ -238,7 +238,7 @@ export const ProjectTasksTab: React.FC<Props> = ({ project }) => {
       ) : viewMode === 'list' ? (
         <div className="space-y-3">
           {filteredTasks.map((task) => {
-            const assignees = users.filter(u => task.assigneeIds.includes(u.id));
+            const assignees = users.filter(u => (task.assigneeIds || []).includes(u.id));
             const completedCount = task.checklists.filter(c => c.completed).length;
 
             return (
@@ -401,7 +401,7 @@ export const ProjectTasksTab: React.FC<Props> = ({ project }) => {
                       </h5>
                       <div className="flex items-center justify-between pt-1 border-t border-slate-100">
                         <div className="flex -space-x-1">
-                          {users.filter(u => t.assigneeIds.includes(u.id)).map(u => (
+                          {users.filter(u => (t.assigneeIds || []).includes(u.id)).map(u => (
                             <img key={u.id} src={u.avatar} alt={u.name} className="w-5 h-5 rounded-full object-cover border border-white" />
                           ))}
                         </div>

@@ -75,11 +75,12 @@ export const TeamDirectoryView: React.FC = () => {
   const filteredUsers = users.filter((u) => {
     if (u.role === 'client') return false; // clients are in Client Directory
     if (u.membershipStatus === 'pending') return false; // pending members are in Pending tab
+    const q = search.toLowerCase();
     const matchSearch = 
-      u.name.toLowerCase().includes(search.toLowerCase()) ||
-      u.phone.includes(search) ||
-      u.email.toLowerCase().includes(search.toLowerCase()) ||
-      u.designation.toLowerCase().includes(search.toLowerCase());
+      (u.name || '').toLowerCase().includes(q) ||
+      (u.phone || '').includes(search) ||
+      (u.email || '').toLowerCase().includes(q) ||
+      (u.designation || '').toLowerCase().includes(q);
     const matchRole = roleFilter === 'all' || u.role === roleFilter;
     return matchSearch && matchRole;
   });
@@ -87,11 +88,12 @@ export const TeamDirectoryView: React.FC = () => {
   const pendingInvites = (invitations || []).filter((inv) => {
     const isBiz = inv.bizId === activeBusiness.id;
     const isPending = inv.status === 'pending';
+    const q = search.toLowerCase();
     const matchSearch = 
-      inv.name.toLowerCase().includes(search.toLowerCase()) ||
-      inv.phone.includes(search) ||
-      inv.email.toLowerCase().includes(search.toLowerCase()) ||
-      inv.role.toLowerCase().includes(search.toLowerCase());
+      (inv.name || '').toLowerCase().includes(q) ||
+      (inv.phone || '').includes(search) ||
+      (inv.email || '').toLowerCase().includes(q) ||
+      (inv.role || '').toLowerCase().includes(q);
     const matchRole = roleFilter === 'all' || inv.sysRole === roleFilter;
     return isBiz && isPending && matchSearch && matchRole;
   });
@@ -302,17 +304,17 @@ export const TeamDirectoryView: React.FC = () => {
       </div>
 
       {/* Quick Add By Email Search Banner */}
-      {search.trim().length >= 2 && users.find(u => u.email.toLowerCase().includes(search.toLowerCase().trim())) && (
+      {search.trim().length >= 2 && users.find(u => (u.email || '').toLowerCase().includes(search.toLowerCase().trim())) && (
         <div className="p-3 bg-blue-50/80 border border-blue-200 rounded-2xl flex items-center justify-between gap-3 text-xs animate-in fade-in">
           <div className="flex items-center gap-2.5">
             <UserCheck className="w-4 h-4 text-blue-600 shrink-0" />
             <p className="text-slate-800">
-              Found FlowDeck employee account: <strong className="text-blue-700">{users.find(u => u.email.toLowerCase().includes(search.toLowerCase().trim()))?.name}</strong> ({users.find(u => u.email.toLowerCase().includes(search.toLowerCase().trim()))?.email})
+              Found FlowDeck employee account: <strong className="text-blue-700">{users.find(u => (u.email || '').toLowerCase().includes(search.toLowerCase().trim()))?.name}</strong> ({users.find(u => (u.email || '').toLowerCase().includes(search.toLowerCase().trim()))?.email})
             </p>
           </div>
           <button
             onClick={() => {
-              const u = users.find(user => user.email.toLowerCase().includes(search.toLowerCase().trim()));
+              const u = users.find(user => (user.email || '').toLowerCase().includes(search.toLowerCase().trim()));
               if (u) {
                 setInviteEmail(u.email);
                 setInviteName(u.name);

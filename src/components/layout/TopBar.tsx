@@ -303,7 +303,7 @@ export const TopBar: React.FC = () => {
                     </div>
                   ) : (
                   userNotifications.map((notif) => {
-                    const isInviteNotif = notif.title.toLowerCase().includes('invitation') && pendingInvite;
+                    const isInviteNotif = (notif.title || '').toLowerCase().includes('invitation') && pendingInvite;
                     return (
                       <div
                         key={notif.id}
