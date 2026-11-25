@@ -194,6 +194,39 @@ export const ProjectDetailView: React.FC = () => {
           })}
         </div>
 
+        {/* Connected Production Pipeline Bar: Tasks -> Rooms & Chat -> Shoot & Call Sheet -> Review -> Audit Log */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pt-2.5 border-t border-slate-100/80 text-[11px]">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mr-1 shrink-0">Workflow:</span>
+          {(
+            [
+              { id: 'tasks', label: '1. Tasks' },
+              { id: 'rooms', label: '2. Rooms & Chat' },
+              { id: 'schedule', label: '3. Shoot & Call Sheet' },
+              { id: 'approvals', label: '4. Review & Approvals' },
+              { id: 'activity', label: '5. Audit Log' }
+            ] as { id: ProjectTabType; label: string }[]
+          ).map((step, idx, arr) => {
+            const isCurrent = activeProjectTab === step.id;
+            return (
+              <React.Fragment key={step.id}>
+                <button
+                  onClick={() => setActiveProjectTab(step.id)}
+                  className={`px-2.5 py-1 rounded-full font-semibold transition-all shrink-0 ${
+                    isCurrent
+                      ? 'bg-blue-600 text-white shadow-2xs'
+                      : 'bg-slate-100 text-slate-600 hover:bg-blue-50 hover:text-blue-700'
+                  }`}
+                >
+                  {step.label}
+                </button>
+                {idx < arr.length - 1 && (
+                  <span className="text-slate-300 font-bold shrink-0">→</span>
+                )}
+              </React.Fragment>
+            );
+          })}
+        </div>
+
       </div>
 
       {/* Mobile Details Bottom Sheet */}

@@ -12,7 +12,9 @@ import {
   Clock, 
   LayoutList, 
   Kanban,
-  X
+  X,
+  MessageSquare,
+  ArrowRight
 } from 'lucide-react';
 
 interface Props {
@@ -25,6 +27,11 @@ export const ProjectTasksTab: React.FC<Props> = ({ project }) => {
     updateTaskStatus, 
     toggleChecklistItem, 
     createTask, 
+    createRoom,
+    sendMessage,
+    activeBusiness,
+    setActiveProjectTab,
+    setActiveRoomId,
     users, 
     currentUser 
   } = useApp();
@@ -335,9 +342,35 @@ export const ProjectTasksTab: React.FC<Props> = ({ project }) => {
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-1 text-slate-500 font-medium">
-                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                    <span>Due {new Date(task.dueAt).toLocaleDateString()}</span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const memberIds = Array.from(new Set([currentUser.id, ...(task.assigneeIds || [])]));
+                        const created = createRoom({
+                          businessId: activeBusiness.id,
+                          projectId: project.id,
+                          name: `Task: ${task.title.slice(0, 32)}`,
+                          description: task.description || `Discussion room for task "${task.title}"`,
+                          roomType: 'internal_planning',
+                          visibility: 'internal',
+                          memberIds,
+                          lastMessageText: `Task room opened for "${task.title}"`,
+                          lastMessageTime: 'Just now'
+                        });
+                        sendMessage(created.id, `Created room for task: "${task.title}" (Due ${new Date(task.dueAt).toLocaleDateString()}).`);
+                        setActiveRoomId(created.id);
+                        setActiveProjectTab('rooms');
+                      }}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 font-semibold text-[11px] transition-colors"
+                    >
+                      <MessageSquare className="w-3 h-3" />
+                      <span>Room & Chat</span>
+                    </button>
+                    <div className="flex items-center gap-1 text-slate-500 font-medium">
+                      <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                      <span>Due {new Date(task.dueAt).toLocaleDateString()}</span>
+                    </div>
                   </div>
                 </div>
               </div>

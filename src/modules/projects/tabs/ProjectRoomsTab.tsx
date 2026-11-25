@@ -16,7 +16,8 @@ import {
   X,
   Sparkles,
   ArrowLeft,
-  Plus
+  Plus,
+  CalendarDays
 } from 'lucide-react';
 
 interface Props {
@@ -32,13 +33,17 @@ export const ProjectRoomsTab: React.FC<Props> = ({ project }) => {
     createRoom,
     activeBusiness,
     currentUser, 
-    users 
+    users,
+    activeRoomId: globalActiveRoomId,
+    setActiveRoomId: setGlobalActiveRoomId,
+    setActiveProjectTab
   } = useApp();
 
   const [isNewRoomOpen, setIsNewRoomOpen] = useState(false);
   const [newRoomName, setNewRoomName] = useState('');
   const [newRoomDesc, setNewRoomDesc] = useState('');
   const [newRoomVisibility, setNewRoomVisibility] = useState<'internal' | 'client_visible'>('internal');
+  const [selectedCrewIds, setSelectedCrewIds] = useState<string[]>([currentUser.id]);
 
   // Filter project rooms. CRITICAL BLUEPRINT SECURITY: Clients cannot see internal rooms!
   const isClient = currentUser.role === 'client';
@@ -48,9 +53,16 @@ export const ProjectRoomsTab: React.FC<Props> = ({ project }) => {
     return true;
   });
 
-  const [activeRoomId, setActiveRoomId] = useState<string>(
+  const [localRoomId, setLocalRoomId] = useState<string>(
     projectRooms[0]?.id || ''
   );
+  const activeRoomId = globalActiveRoomId && projectRooms.some(r => r.id === globalActiveRoomId)
+    ? globalActiveRoomId
+    : localRoomId;
+  const setActiveRoomId = (id: string) => {
+    setLocalRoomId(id);
+    setGlobalActiveRoomId(id);
+  };
   const [inputText, setInputText] = useState('');
   const [mobileView, setMobileView] = useState<'list' | 'chat'>('list');
 
@@ -215,8 +227,17 @@ export const ProjectRoomsTab: React.FC<Props> = ({ project }) => {
 
             <div className="flex items-center gap-2 shrink-0">
               <span className="text-[11px] text-slate-400">
-                {currentRoom.memberIds.length} members
+                {(currentRoom.memberIds || []).length} members
               </span>
+              {!isClient && (
+                <button
+                  onClick={() => setActiveProjectTab('schedule')}
+                  className="px-2.5 py-1 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-[11px] font-bold flex items-center gap-1 transition-colors"
+                >
+                  <CalendarDays className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Shoot & Call Sheet →</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -414,19 +435,24 @@ export const ProjectRoomsTab: React.FC<Props> = ({ project }) => {
               onSubmit={(e) => {
                 e.preventDefault();
                 if (!newRoomName.trim()) return;
-                createRoom({
+                const finalMembers = Array.from(new Set([currentUser.id, ...selectedCrewIds]));
+                const created = createRoom({
                   businessId: activeBusiness.id,
                   projectId: project.id,
                   name: newRoomName.trim(),
                   description: newRoomDesc.trim() || `Discussion room for ${project.title}`,
                   roomType: newRoomVisibility === 'client_visible' ? 'client_discussion' : 'internal_planning',
                   visibility: newRoomVisibility,
-                  memberIds: [currentUser.id],
-                  lastMessageText: 'Channel created.',
+                  memberIds: finalMembers,
+                  lastMessageText: `Room started with ${finalMembers.length} crew member(s).`,
                   lastMessageTime: 'Just now'
                 });
+                sendMessage(created.id, `Room "${created.name}" created. Added crew can now collaborate here.`);
+                setActiveRoomId(created.id);
+                setMobileView('chat');
                 setNewRoomName('');
                 setNewRoomDesc('');
+                setSelectedCrewIds([currentUser.id]);
                 setIsNewRoomOpen(false);
               }}
               className="space-y-3"
@@ -454,6 +480,41 @@ export const ProjectRoomsTab: React.FC<Props> = ({ project }) => {
                 <option value="internal">Internal Crew Only (Private)</option>
                 <option value="client_visible">Client-Visible Room / Meeting</option>
               </select>
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1.5 flex items-center justify-between">
+                  <span>Add Crew to Discuss & Message</span>
+                  <span className="text-blue-600 font-semibold">{selectedCrewIds.length} selected</span>
+                </label>
+                <div className="max-h-36 overflow-y-auto space-y-1.5 p-2 rounded-xl border border-slate-200 bg-slate-50/70">
+                  {users.filter(u => u.role !== 'client' && u.membershipStatus !== 'pending').length === 0 ? (
+                    <p className="text-[11px] text-slate-400 text-center py-2">No other active crew members yet.</p>
+                  ) : (
+                    users.filter(u => u.role !== 'client' && u.membershipStatus !== 'pending').map((u) => {
+                      const isSel = selectedCrewIds.includes(u.id);
+                      return (
+                        <button
+                          key={u.id}
+                          type="button"
+                          onClick={() => {
+                            if (isSel) setSelectedCrewIds(selectedCrewIds.filter(id => id !== u.id));
+                            else setSelectedCrewIds([...selectedCrewIds, u.id]);
+                          }}
+                          className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left text-xs transition-all ${
+                            isSel ? 'bg-blue-600 text-white font-semibold' : 'bg-white border border-slate-200 text-slate-700 hover:border-blue-300'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <img src={u.avatar} alt={u.name} className="w-5 h-5 rounded-full object-cover shrink-0" />
+                            <span className="truncate">{u.name}</span>
+                            <span className={`text-[10px] truncate ${isSel ? 'text-blue-100' : 'text-slate-400'}`}>({u.designation})</span>
+                          </div>
+                          {isSel && <Check className="w-3.5 h-3.5 shrink-0" />}
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
               <div className="flex justify-end gap-2 pt-2">
                 <button type="button" onClick={() => setIsNewRoomOpen(false)} className="text-xs text-slate-600 px-3 py-1.5">Cancel</button>
                 <button type="submit" className="text-xs font-bold text-white bg-blue-600 px-4 py-1.5 rounded-xl">Create Room</button>

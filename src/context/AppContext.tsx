@@ -189,7 +189,9 @@ interface AppContextType {
   deleteShootEvent: (shootId: string) => void;
   respondToLeave: (leaveId: string, status: 'approved' | 'rejected') => void;
   markAllNotificationsAsRead: () => void;
-  createRoom: (room: Omit<Room, 'id' | 'unreadCount'>) => void;
+  createRoom: (room: Omit<Room, 'id' | 'unreadCount'>) => Room;
+  activeRoomId: string | null;
+  setActiveRoomId: (id: string | null) => void;
 }
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -287,6 +289,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [activeProjectTab, setActiveProjectTab] = useState<ProjectTabType>('overview');
+  const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
 
   // Domain states with localStorage persistence fallback
   const [projects, setProjects] = useState<Project[]>(() => {
@@ -2129,7 +2132,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
   };
 
-  const createRoom = (room: Omit<Room, 'id' | 'unreadCount'>) => {
+  const createRoom = (room: Omit<Room, 'id' | 'unreadCount'>): Room => {
     const newRoom: Room = {
       ...room,
       id: 'room_' + Math.random().toString(36).substr(2, 9),
@@ -2137,7 +2140,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
     setRooms((prev) => [newRoom, ...prev]);
     saveFirestoreDoc(COLLECTIONS.ROOMS, newRoom);
+    setActiveRoomId(newRoom.id);
+
+    const newLog: ActivityLog = {
+      id: 'act_' + Math.random().toString(36).substr(2, 9),
+      projectId: newRoom.projectId,
+      actorId: currentUser.id,
+      action: 'started discussion room',
+      target: `#${newRoom.name}`,
+      timestamp: 'Just now',
+      category: 'message'
+    };
+    setActivityLogs((prev) => [newLog, ...prev]);
+    saveFirestoreDoc(COLLECTIONS.LOGS, newLog);
+
     addToast('Channel Created', `"#${newRoom.name}" room is ready.`, 'success');
+    return newRoom;
   };
 
   return (
@@ -2231,7 +2249,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deleteShootEvent,
         respondToLeave,
         markAllNotificationsAsRead,
-        createRoom
+        createRoom,
+        activeRoomId,
+        setActiveRoomId
       }}
     >
       {children}

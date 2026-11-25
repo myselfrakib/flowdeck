@@ -15,7 +15,8 @@ import {
   Sparkles, 
   Film,
   Download,
-  AlertCircle
+  AlertCircle,
+  History
 } from 'lucide-react';
 
 interface Props {
@@ -29,6 +30,7 @@ export const ProjectApprovalsTab: React.FC<Props> = ({ project }) => {
     approveVersionInternally, 
     approveVersionClient, 
     requestVersionChanges, 
+    setActiveProjectTab,
     currentUser, 
     users 
   } = useApp();
@@ -75,10 +77,17 @@ export const ProjectApprovalsTab: React.FC<Props> = ({ project }) => {
 
   if (!activeVersion) {
     return (
-      <div className="py-16 text-center bg-white rounded-3xl border border-slate-200">
+      <div className="py-16 text-center bg-white rounded-3xl border border-slate-200 space-y-3">
         <Film className="w-12 h-12 mx-auto text-slate-300 mb-2" />
         <h4 className="text-sm font-bold text-slate-800">No Review Cuts Uploaded</h4>
         <p className="text-xs text-slate-500 mt-1">Video editors will submit version cuts here for review.</p>
+        <button
+          onClick={() => setActiveProjectTab('activity')}
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-xs transition-colors"
+        >
+          <History className="w-3.5 h-3.5" />
+          <span>View Audit Log →</span>
+        </button>
       </div>
     );
   }
@@ -111,15 +120,24 @@ export const ProjectApprovalsTab: React.FC<Props> = ({ project }) => {
           ))}
         </div>
 
-        <a
-          href={activeVersion.driveLink}
-          target="_blank"
-          rel="noreferrer"
-          className="hidden sm:flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-800"
-        >
-          <span>Raw ProRes Vault</span>
-          <ExternalLink className="w-3.5 h-3.5" />
-        </a>
+        <div className="flex items-center gap-2 shrink-0">
+          <a
+            href={activeVersion.driveLink}
+            target="_blank"
+            rel="noreferrer"
+            className="hidden sm:flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-800"
+          >
+            <span>Raw ProRes Vault</span>
+            <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+          <button
+            onClick={() => setActiveProjectTab('activity')}
+            className="px-2.5 py-1 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center gap-1 transition-colors"
+          >
+            <History className="w-3.5 h-3.5" />
+            <span>Audit Log →</span>
+          </button>
+        </div>
       </div>
 
       {/* Main Review Section: Video Player (Left) & Timestamp Comments (Right) */}

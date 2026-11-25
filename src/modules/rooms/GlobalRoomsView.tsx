@@ -11,7 +11,10 @@ import {
   ShieldAlert,
   X,
   ArrowLeft,
-  Plus
+  Plus,
+  Users,
+  CalendarDays,
+  Check
 } from 'lucide-react';
 import { Message, Room } from '../../types';
 
@@ -26,7 +29,9 @@ export const GlobalRoomsView: React.FC = () => {
     projects, 
     users, 
     currentUser, 
-    openProject 
+    openProject,
+    activeRoomId: globalActiveRoomId,
+    setActiveRoomId: setGlobalActiveRoomId
   } = useApp();
 
   const [isNewRoomOpen, setIsNewRoomOpen] = useState(false);
@@ -34,11 +39,19 @@ export const GlobalRoomsView: React.FC = () => {
   const [newRoomDesc, setNewRoomDesc] = useState('');
   const [newRoomProjectId, setNewRoomProjectId] = useState(projects[0]?.id || 'proj_general');
   const [newRoomVisibility, setNewRoomVisibility] = useState<'internal' | 'client_visible'>('internal');
+  const [selectedCrewIds, setSelectedCrewIds] = useState<string[]>([currentUser.id]);
 
   const isClient = currentUser.role === 'client';
   const visibleRooms = rooms.filter(r => !isClient || r.visibility === 'client_visible');
 
-  const [activeRoomId, setActiveRoomId] = useState<string>(visibleRooms[0]?.id || '');
+  const [localRoomId, setLocalRoomId] = useState<string>(visibleRooms[0]?.id || '');
+  const activeRoomId = globalActiveRoomId && visibleRooms.some(r => r.id === globalActiveRoomId)
+    ? globalActiveRoomId
+    : localRoomId;
+  const setActiveRoomId = (id: string) => {
+    setLocalRoomId(id);
+    setGlobalActiveRoomId(id);
+  };
   const [inputText, setInputText] = useState('');
   const [mobileView, setMobileView] = useState<'list' | 'chat'>('list');
 
@@ -180,15 +193,28 @@ export const GlobalRoomsView: React.FC = () => {
                     </span>
                   </div>
                   {currentProject && (
-                    <button
-                      onClick={() => openProject(currentProject.id, 'overview')}
-                      className="text-[11px] font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-1 mt-0.5"
-                    >
-                      <span>{currentProject.title}</span>
-                      <ExternalLink className="w-3 h-3" />
-                    </button>
+                    <div className="flex items-center gap-3 mt-0.5">
+                      <button
+                        onClick={() => openProject(currentProject.id, 'overview')}
+                        className="text-[11px] font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                      >
+                        <span>{currentProject.title}</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </button>
+                      <button
+                        onClick={() => openProject(currentProject.id, 'schedule')}
+                        className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-200"
+                      >
+                        <CalendarDays className="w-3 h-3" />
+                        <span>Shoot & Call Sheet →</span>
+                      </button>
+                    </div>
                   )}
                 </div>
+              </div>
+              <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-slate-500">
+                <Users className="w-3.5 h-3.5 text-slate-400" />
+                <span>{(currentRoom.memberIds || []).length} members</span>
               </div>
             </div>
 
@@ -314,19 +340,24 @@ export const GlobalRoomsView: React.FC = () => {
               onSubmit={(e) => {
                 e.preventDefault();
                 if (!newRoomName.trim()) return;
-                createRoom({
+                const finalMembers = Array.from(new Set([currentUser.id, ...selectedCrewIds]));
+                const created = createRoom({
                   businessId: activeBusiness.id,
                   projectId: newRoomProjectId || projects[0]?.id || 'proj_general',
                   name: newRoomName.trim(),
                   description: newRoomDesc.trim() || 'Agency discussion & meeting channel',
                   roomType: newRoomVisibility === 'client_visible' ? 'client_discussion' : 'internal_planning',
                   visibility: newRoomVisibility,
-                  memberIds: [currentUser.id],
-                  lastMessageText: 'Channel created.',
+                  memberIds: finalMembers,
+                  lastMessageText: `Room started with ${finalMembers.length} crew member(s).`,
                   lastMessageTime: 'Just now'
                 });
+                sendMessage(created.id, `Room "${created.name}" created. Invited crew can now discuss and coordinate here.`);
+                setActiveRoomId(created.id);
+                setMobileView('chat');
                 setNewRoomName('');
                 setNewRoomDesc('');
+                setSelectedCrewIds([currentUser.id]);
                 setIsNewRoomOpen(false);
               }}
               className="space-y-3"
@@ -388,6 +419,42 @@ export const GlobalRoomsView: React.FC = () => {
                   <option value="internal">Internal Crew Only (Private)</option>
                   <option value="client_visible">Client-Visible Room / Meeting</option>
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1.5 flex items-center justify-between">
+                  <span>Add Crew to Discuss & Message</span>
+                  <span className="text-blue-600 font-semibold">{selectedCrewIds.length} selected</span>
+                </label>
+                <div className="max-h-36 overflow-y-auto space-y-1.5 p-2 rounded-xl border border-slate-200 bg-slate-50/70">
+                  {users.filter(u => u.role !== 'client' && u.membershipStatus !== 'pending').length === 0 ? (
+                    <p className="text-[11px] text-slate-400 text-center py-2">No other active crew members yet.</p>
+                  ) : (
+                    users.filter(u => u.role !== 'client' && u.membershipStatus !== 'pending').map((u) => {
+                      const isSel = selectedCrewIds.includes(u.id);
+                      return (
+                        <button
+                          key={u.id}
+                          type="button"
+                          onClick={() => {
+                            if (isSel) setSelectedCrewIds(selectedCrewIds.filter(id => id !== u.id));
+                            else setSelectedCrewIds([...selectedCrewIds, u.id]);
+                          }}
+                          className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left text-xs transition-all ${
+                            isSel ? 'bg-blue-600 text-white font-semibold' : 'bg-white border border-slate-200 text-slate-700 hover:border-blue-300'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <img src={u.avatar} alt={u.name} className="w-5 h-5 rounded-full object-cover shrink-0" />
+                            <span className="truncate">{u.name}</span>
+                            <span className={`text-[10px] truncate ${isSel ? 'text-blue-100' : 'text-slate-400'}`}>({u.designation})</span>
+                          </div>
+                          {isSel && <Check className="w-3.5 h-3.5 shrink-0" />}
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <button type="button" onClick={() => setIsNewRoomOpen(false)} className="text-xs text-slate-600 px-3 py-1.5">Cancel</button>
