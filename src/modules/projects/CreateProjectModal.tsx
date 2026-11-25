@@ -64,7 +64,7 @@ export const CreateProjectModal: React.FC = () => {
 
   if (!isCreateProjectOpen) return null;
 
-  const selectedClient = clients.find(c => c.id === clientId) || clients[0];
+  const selectedClient = clientId === '__custom__' ? undefined : (clients.find(c => c.id === clientId) || clients[0]);
   const clientDisplayName = selectedClient?.brandName || customBrandName.trim() || 'Internal Production';
   const resolvedClientId = selectedClient?.id || 'client_direct';
 
@@ -199,30 +199,44 @@ export const CreateProjectModal: React.FC = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
-                    Client Brand
+                    For Which Client *
                   </label>
                   {clients.length > 0 ? (
-                    <select
-                      value={clientId}
-                      onChange={(e) => setClientId(e.target.value)}
-                      className="w-full text-xs sm:text-sm px-3 py-2 rounded-xl border border-slate-200 focus:outline-hidden"
-                    >
-                      {clients.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.brandName} ({c.contactPerson})
-                        </option>
-                      ))}
-                    </select>
+                    <div className="space-y-2">
+                      <select
+                        value={clientId || clients[0]?.id || '__custom__'}
+                        onChange={(e) => setClientId(e.target.value)}
+                        className="w-full text-xs sm:text-sm px-3 py-2 rounded-xl border border-slate-200 focus:outline-hidden focus:border-blue-600 bg-white"
+                      >
+                        {clients.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.brandName} ({c.contactPerson})
+                          </option>
+                        ))}
+                        <option value="__custom__">+ Enter Custom / New Client Name</option>
+                      </select>
+                      {clientId === '__custom__' && (
+                        <input
+                          type="text"
+                          required
+                          placeholder="Enter client / brand name..."
+                          value={customBrandName}
+                          onChange={(e) => setCustomBrandName(e.target.value)}
+                          className="w-full text-xs sm:text-sm px-3 py-2 rounded-xl border border-blue-300 focus:outline-hidden focus:border-blue-600"
+                        />
+                      )}
+                    </div>
                   ) : (
                     <input
                       type="text"
-                      placeholder="e.g. Zenith Activewear"
+                      required
+                      placeholder="e.g. Zenith Activewear (Client Brand)"
                       value={customBrandName}
                       onChange={(e) => setCustomBrandName(e.target.value)}
-                      className="w-full text-xs sm:text-sm px-3 py-2 rounded-xl border border-slate-200 focus:outline-hidden"
+                      className="w-full text-xs sm:text-sm px-3 py-2 rounded-xl border border-slate-200 focus:outline-hidden focus:border-blue-600"
                     />
                   )}
                 </div>

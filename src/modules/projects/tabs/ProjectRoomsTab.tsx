@@ -15,7 +15,8 @@ import {
   Check, 
   X,
   Sparkles,
-  ArrowLeft
+  ArrowLeft,
+  Plus
 } from 'lucide-react';
 
 interface Props {
@@ -28,9 +29,16 @@ export const ProjectRoomsTab: React.FC<Props> = ({ project }) => {
     messages, 
     sendMessage, 
     convertMessageToTask, 
+    createRoom,
+    activeBusiness,
     currentUser, 
     users 
   } = useApp();
+
+  const [isNewRoomOpen, setIsNewRoomOpen] = useState(false);
+  const [newRoomName, setNewRoomName] = useState('');
+  const [newRoomDesc, setNewRoomDesc] = useState('');
+  const [newRoomVisibility, setNewRoomVisibility] = useState<'internal' | 'client_visible'>('internal');
 
   // Filter project rooms. CRITICAL BLUEPRINT SECURITY: Clients cannot see internal rooms!
   const isClient = currentUser.role === 'client';
@@ -88,9 +96,20 @@ export const ProjectRoomsTab: React.FC<Props> = ({ project }) => {
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">
               Project Discussion Rooms
             </h4>
-            <span className="text-xs font-bold text-slate-600 bg-white px-2 py-0.5 rounded-full border border-slate-200">
-              {projectRooms.length}
-            </span>
+            <div className="flex items-center gap-1.5">
+              {!isClient && (
+                <button
+                  onClick={() => setIsNewRoomOpen(true)}
+                  className="text-[11px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-0.5 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200"
+                >
+                  <Plus className="w-3 h-3" />
+                  <span>New</span>
+                </button>
+              )}
+              <span className="text-xs font-bold text-slate-600 bg-white px-2 py-0.5 rounded-full border border-slate-200">
+                {projectRooms.length}
+              </span>
+            </div>
           </div>
           {isClient && (
             <p className="text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg p-1.5 mt-2 font-medium">
@@ -375,6 +394,69 @@ export const ProjectRoomsTab: React.FC<Props> = ({ project }) => {
                 >
                   Add Task to Board
                 </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Start New Room Modal */}
+      {isNewRoomOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl p-5 shadow-2xl border border-slate-200 max-w-md w-full space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <h4 className="text-sm font-bold text-slate-900">Start New Room for {project.code}</h4>
+              <button onClick={() => setIsNewRoomOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!newRoomName.trim()) return;
+                createRoom({
+                  businessId: activeBusiness.id,
+                  projectId: project.id,
+                  name: newRoomName.trim(),
+                  description: newRoomDesc.trim() || `Discussion room for ${project.title}`,
+                  roomType: newRoomVisibility === 'client_visible' ? 'client_discussion' : 'internal_planning',
+                  visibility: newRoomVisibility,
+                  memberIds: [currentUser.id],
+                  lastMessageText: 'Channel created.',
+                  lastMessageTime: 'Just now'
+                });
+                setNewRoomName('');
+                setNewRoomDesc('');
+                setIsNewRoomOpen(false);
+              }}
+              className="space-y-3"
+            >
+              <input
+                type="text"
+                required
+                value={newRoomName}
+                onChange={(e) => setNewRoomName(e.target.value)}
+                placeholder="Room / Meeting name (e.g. Edit Review Sync)"
+                className="w-full text-xs p-2.5 rounded-xl border border-slate-200"
+              />
+              <input
+                type="text"
+                value={newRoomDesc}
+                onChange={(e) => setNewRoomDesc(e.target.value)}
+                placeholder="Topic or meeting agenda"
+                className="w-full text-xs p-2.5 rounded-xl border border-slate-200"
+              />
+              <select
+                value={newRoomVisibility}
+                onChange={(e) => setNewRoomVisibility(e.target.value as any)}
+                className="w-full text-xs p-2.5 rounded-xl border border-slate-200 bg-white"
+              >
+                <option value="internal">Internal Crew Only (Private)</option>
+                <option value="client_visible">Client-Visible Room / Meeting</option>
+              </select>
+              <div className="flex justify-end gap-2 pt-2">
+                <button type="button" onClick={() => setIsNewRoomOpen(false)} className="text-xs text-slate-600 px-3 py-1.5">Cancel</button>
+                <button type="submit" className="text-xs font-bold text-white bg-blue-600 px-4 py-1.5 rounded-xl">Create Room</button>
               </div>
             </form>
           </div>

@@ -32,6 +32,7 @@ export const GlobalRoomsView: React.FC = () => {
   const [isNewRoomOpen, setIsNewRoomOpen] = useState(false);
   const [newRoomName, setNewRoomName] = useState('');
   const [newRoomDesc, setNewRoomDesc] = useState('');
+  const [newRoomProjectId, setNewRoomProjectId] = useState(projects[0]?.id || 'proj_general');
   const [newRoomVisibility, setNewRoomVisibility] = useState<'internal' | 'client_visible'>('internal');
 
   const isClient = currentUser.role === 'client';
@@ -67,18 +68,33 @@ export const GlobalRoomsView: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      <div>
-        <div className="flex items-center gap-2">
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-            Messages & Project Rooms
-          </h1>
-          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
-            {visibleRooms.length} Active Channels
-          </span>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+              Messages & Project Rooms
+            </h1>
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
+              {visibleRooms.length} Active Channels
+            </span>
+          </div>
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+            Real-time coordination with strict client/internal privacy boundary
+          </p>
         </div>
-        <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-          Real-time coordination with strict client/internal privacy boundary
-        </p>
+
+        {!isClient && (
+          <button
+            onClick={() => {
+              setNewRoomProjectId(projects[0]?.id || 'proj_general');
+              setIsNewRoomOpen(true);
+            }}
+            className="flex items-center justify-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs sm:text-sm rounded-xl shadow-xs transition-colors shrink-0"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Start New Room</span>
+          </button>
+        )}
       </div>
 
       <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden flex flex-col md:flex-row h-[620px] sm:h-[720px]">
@@ -289,7 +305,7 @@ export const GlobalRoomsView: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
           <div className="bg-white rounded-3xl p-5 shadow-2xl border border-slate-200 max-w-md w-full space-y-3">
             <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <h4 className="text-sm font-bold text-slate-900">Create Discussion Room</h4>
+              <h4 className="text-sm font-bold text-slate-900">Start New Room / Meeting Channel</h4>
               <button onClick={() => setIsNewRoomOpen(false)} className="text-slate-400 hover:text-slate-600">
                 <X className="w-4 h-4" />
               </button>
@@ -300,9 +316,9 @@ export const GlobalRoomsView: React.FC = () => {
                 if (!newRoomName.trim()) return;
                 createRoom({
                   businessId: activeBusiness.id,
-                  projectId: projects[0]?.id || 'proj_general',
+                  projectId: newRoomProjectId || projects[0]?.id || 'proj_general',
                   name: newRoomName.trim(),
-                  description: newRoomDesc.trim() || 'Agency discussion channel',
+                  description: newRoomDesc.trim() || 'Agency discussion & meeting channel',
                   roomType: newRoomVisibility === 'client_visible' ? 'client_discussion' : 'internal_planning',
                   visibility: newRoomVisibility,
                   memberIds: [currentUser.id],
@@ -315,29 +331,64 @@ export const GlobalRoomsView: React.FC = () => {
               }}
               className="space-y-3"
             >
-              <input
-                type="text"
-                required
-                value={newRoomName}
-                onChange={(e) => setNewRoomName(e.target.value)}
-                placeholder="Room name (e.g. Post-Production Sync)"
-                className="w-full text-xs p-2.5 rounded-xl border border-slate-200"
-              />
-              <input
-                type="text"
-                value={newRoomDesc}
-                onChange={(e) => setNewRoomDesc(e.target.value)}
-                placeholder="Purpose or description"
-                className="w-full text-xs p-2.5 rounded-xl border border-slate-200"
-              />
-              <select
-                value={newRoomVisibility}
-                onChange={(e) => setNewRoomVisibility(e.target.value as any)}
-                className="w-full text-xs p-2.5 rounded-xl border border-slate-200 bg-white"
-              >
-                <option value="internal">Internal Crew Only</option>
-                <option value="client_visible">Client-Visible Channel</option>
-              </select>
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
+                  For Which Project / Meeting *
+                </label>
+                <select
+                  value={newRoomProjectId}
+                  onChange={(e) => setNewRoomProjectId(e.target.value)}
+                  className="w-full text-xs p-2.5 rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-blue-600"
+                >
+                  {projects.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.code} — {p.title} ({p.clientName})
+                    </option>
+                  ))}
+                  <option value="proj_general">General / Agency-Wide Meeting</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
+                  Room or Meeting Title *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newRoomName}
+                  onChange={(e) => setNewRoomName(e.target.value)}
+                  placeholder="e.g. Post-Production Sync or Client Kickoff"
+                  className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-hidden focus:border-blue-600"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
+                  Topic / Agenda
+                </label>
+                <input
+                  type="text"
+                  value={newRoomDesc}
+                  onChange={(e) => setNewRoomDesc(e.target.value)}
+                  placeholder="Purpose or meeting agenda"
+                  className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-hidden focus:border-blue-600"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
+                  Room Privacy Scope
+                </label>
+                <select
+                  value={newRoomVisibility}
+                  onChange={(e) => setNewRoomVisibility(e.target.value as any)}
+                  className="w-full text-xs p-2.5 rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-blue-600"
+                >
+                  <option value="internal">Internal Crew Only (Private)</option>
+                  <option value="client_visible">Client-Visible Room / Meeting</option>
+                </select>
+              </div>
               <div className="flex justify-end gap-2 pt-2">
                 <button type="button" onClick={() => setIsNewRoomOpen(false)} className="text-xs text-slate-600 px-3 py-1.5">Cancel</button>
                 <button type="submit" className="text-xs font-bold text-white bg-blue-600 px-4 py-1.5 rounded-xl">Create Room</button>
