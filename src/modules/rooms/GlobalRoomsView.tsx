@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { 
   MessageSquare, 
@@ -54,6 +54,10 @@ export const GlobalRoomsView: React.FC = () => {
   };
   const [inputText, setInputText] = useState('');
   const [isFullChatOpen, setIsFullChatOpen] = useState<boolean>(!!globalActiveRoomId);
+
+  useEffect(() => {
+    setIsFullChatOpen(!!globalActiveRoomId);
+  }, [globalActiveRoomId]);
 
   // Task conversion state
   const [convertingMessage, setConvertingMessage] = useState<Message | null>(null);

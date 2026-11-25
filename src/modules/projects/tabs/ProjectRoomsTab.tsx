@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Project, Room, Message } from '../../../types';
 import { useApp } from '../../../context/AppContext';
 import { 
@@ -65,6 +65,10 @@ export const ProjectRoomsTab: React.FC<Props> = ({ project }) => {
   };
   const [inputText, setInputText] = useState('');
   const [isFullChatOpen, setIsFullChatOpen] = useState<boolean>(!!globalActiveRoomId);
+
+  useEffect(() => {
+    setIsFullChatOpen(!!globalActiveRoomId);
+  }, [globalActiveRoomId]);
 
   // Convert Message to Task modal state
   const [convertingMessage, setConvertingMessage] = useState<Message | null>(null);

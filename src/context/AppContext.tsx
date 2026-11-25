@@ -67,6 +67,59 @@ export type AppView =
 
 export type ProjectTabType = 'overview' | 'tasks' | 'rooms' | 'schedule' | 'assets' | 'approvals' | 'activity';
 
+const VALID_VIEWS: AppView[] = [
+  'overview', 'projects', 'project_detail', 'tasks', 'rooms',
+  'calendar', 'team', 'clients', 'client_portal', 'hr', 'reports', 'settings', 'profile'
+];
+const VALID_TABS: ProjectTabType[] = ['overview', 'tasks', 'rooms', 'schedule', 'assets', 'approvals', 'activity'];
+
+const parseAppRoute = (): {
+  view?: AppView;
+  projectId?: string | null;
+  projectTab?: ProjectTabType;
+  roomId?: string | null;
+} => {
+  try {
+    const hash = typeof window !== 'undefined' ? window.location.hash : '';
+    if (hash && hash.startsWith('#/')) {
+      const parts = hash.slice(2).split('/').filter(Boolean).map(decodeURIComponent);
+      const [first, second, third, fourth] = parts;
+      if (first === 'projects' && second) {
+        const tab = VALID_TABS.includes(third as ProjectTabType) ? (third as ProjectTabType) : 'overview';
+        const roomId = tab === 'rooms' && fourth ? fourth : null;
+        return { view: 'project_detail', projectId: second, projectTab: tab, roomId };
+      }
+      if (first === 'rooms') {
+        return { view: 'rooms', projectId: null, projectTab: 'overview', roomId: second || null };
+      }
+      if (VALID_VIEWS.includes(first as AppView)) {
+        return { view: first as AppView, projectId: null, projectTab: 'overview', roomId: null };
+      }
+    }
+    const saved = localStorage.getItem('flowdeck_last_route');
+    if (saved) return JSON.parse(saved);
+  } catch {}
+  return {};
+};
+
+const buildRouteHash = (
+  view: AppView,
+  projectId: string | null,
+  tab: ProjectTabType,
+  roomId: string | null
+): string => {
+  if (view === 'project_detail' && projectId) {
+    if (tab === 'rooms' && roomId) {
+      return `#/projects/${encodeURIComponent(projectId)}/rooms/${encodeURIComponent(roomId)}`;
+    }
+    return `#/projects/${encodeURIComponent(projectId)}/${encodeURIComponent(tab)}`;
+  }
+  if (view === 'rooms' && roomId) {
+    return `#/rooms/${encodeURIComponent(roomId)}`;
+  }
+  return `#/${view}`;
+};
+
 export interface ToastMessage {
   id: string;
   title: string;
@@ -282,7 +335,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return users[0] || DEFAULT_USER;
   });
 
+  const initialRoute = parseAppRoute();
+
   const [currentView, setCurrentView] = useState<AppView>(() => {
+    if (initialRoute.view) return initialRoute.view;
     try {
       const saved = localStorage.getItem('flowdeck_session');
       if (saved) {
@@ -293,9 +349,53 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return 'overview';
   });
 
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
-  const [activeProjectTab, setActiveProjectTab] = useState<ProjectTabType>('overview');
-  const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(() => initialRoute.projectId ?? null);
+  const [activeProjectTab, setActiveProjectTab] = useState<ProjectTabType>(() => initialRoute.projectTab ?? 'overview');
+  const [activeRoomId, setActiveRoomId] = useState<string | null>(() => initialRoute.roomId ?? null);
+
+  // Sync active route to URL hash and localStorage so refresh & links preserve exact state
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    try {
+      localStorage.setItem(
+        'flowdeck_last_route',
+        JSON.stringify({
+          view: currentView,
+          projectId: selectedProjectId,
+          projectTab: activeProjectTab,
+          roomId: activeRoomId
+        })
+      );
+      const nextHash = buildRouteHash(currentView, selectedProjectId, activeProjectTab, activeRoomId);
+      if (typeof window !== 'undefined' && window.location.hash !== nextHash) {
+        window.history.pushState(null, '', nextHash);
+      }
+    } catch {}
+  }, [isAuthenticated, currentView, selectedProjectId, activeProjectTab, activeRoomId]);
+
+  // Clear activeRoomId when navigating outside of rooms
+  useEffect(() => {
+    if (currentView !== 'rooms' && !(currentView === 'project_detail' && activeProjectTab === 'rooms')) {
+      if (activeRoomId !== null) setActiveRoomId(null);
+    }
+  }, [currentView, activeProjectTab]);
+
+  // Listen to browser Back/Forward hash navigation
+  useEffect(() => {
+    const handleHashChange = () => {
+      const parsed = parseAppRoute();
+      if (parsed.view) setCurrentView(parsed.view);
+      if (parsed.projectId !== undefined) setSelectedProjectId(parsed.projectId);
+      if (parsed.projectTab !== undefined) setActiveProjectTab(parsed.projectTab);
+      if (parsed.roomId !== undefined) setActiveRoomId(parsed.roomId);
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    window.addEventListener('popstate', handleHashChange);
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange);
+      window.removeEventListener('popstate', handleHashChange);
+    };
+  }, []);
 
   const [unreadProjectIds, setUnreadProjectIds] = useState<string[]>(() => {
     try {
