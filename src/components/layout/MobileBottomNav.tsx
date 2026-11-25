@@ -26,10 +26,6 @@ export const MobileBottomNav: React.FC = () => {
     setCurrentView, 
     currentUser, 
     rooms, 
-    selectedProjectId, 
-    projects,
-    activeProjectTab,
-    setActiveProjectTab,
     logout
   } = useApp();
 
@@ -37,8 +33,6 @@ export const MobileBottomNav: React.FC = () => {
 
   const unreadCount = rooms.reduce((acc, r) => acc + (r.unreadCount || 0), 0);
   const isHRAuthorized = currentUser.role === 'owner' || currentUser.role === 'hr_manager';
-  const activeProject = projects.find(p => p.id === selectedProjectId);
-  const isInsideProject = currentView === 'project_detail' && activeProject;
 
   const navItems = [
     { id: 'overview' as AppView, label: 'Home', icon: LayoutDashboard },
@@ -155,24 +149,6 @@ export const MobileBottomNav: React.FC = () => {
 
       {/* Persistent 5-Item Mobile Bottom Bar */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-lg border-t border-slate-200/90 safe-bottom shadow-[0_-4px_20px_rgba(0,0,0,0.06)]">
-        
-        {/* Active Project Mobile Context Strip (Blueprint Principle: "The active project context should remain visible when navigating within a project.") */}
-        {isInsideProject && (
-          <div className="bg-slate-900 text-white px-3 py-1.5 flex items-center justify-between text-xs font-semibold">
-            <div className="flex items-center gap-2 truncate">
-              <span className="text-[10px] font-mono font-bold bg-blue-600 px-1.5 py-0.2 rounded shrink-0">
-                {activeProject.code}
-              </span>
-              <span className="truncate text-slate-200 text-[11px] font-medium">
-                {activeProject.title}
-              </span>
-            </div>
-            <span className="text-[10px] uppercase font-bold text-sky-400 bg-sky-950 px-2 py-0.5 rounded shrink-0 border border-sky-800">
-              {activeProjectTab}
-            </span>
-          </div>
-        )}
-
         <div className="grid grid-cols-5 items-center justify-items-center h-14 px-1">
           {navItems.map((item) => {
             const Icon = item.icon;
