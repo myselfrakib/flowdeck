@@ -18,11 +18,12 @@ import {
 import { TaskStatus, ProjectPriority } from '../../types';
 
 export const TasksView: React.FC = () => {
-  const { tasks, projects, users, updateTaskStatus, deleteTask, openProject, createTask, createRoom, sendMessage, activeBusiness, setActiveRoomId, currentUser } = useApp();
+  const { tasks, projects, users, updateTaskStatus, toggleChecklistItem, addSubtask, deleteTask, openProject, createTask, createRoom, sendMessage, activeBusiness, setActiveRoomId, currentUser } = useApp();
   const [viewMode, setViewMode] = useState<'list' | 'board'>('list');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [projectFilter, setProjectFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [subtaskInputs, setSubtaskInputs] = useState<Record<string, string>>({});
   const [isNewTaskOpen, setIsNewTaskOpen] = useState(false);
 
   // New Task form state
@@ -272,6 +273,51 @@ export const TasksView: React.FC = () => {
                       <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
                       <span><strong>Blocker:</strong> {task.blockerReason}</span>
                     </div>
+                  )}
+                </div>
+
+                {/* Subtasks Checklists */}
+                <div className="space-y-1.5 pt-2 border-t border-slate-100">
+                  <div className="flex items-center justify-between text-[11px] font-semibold text-slate-400">
+                    <span>Subtask Verification ({(task.checklists || []).filter(c => c.completed).length}/{(task.checklists || []).length})</span>
+                  </div>
+                  {(task.checklists || []).map((chk) => (
+                    <label key={chk.id} className="flex items-center gap-2 text-xs text-slate-700 hover:text-slate-900 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={chk.completed}
+                        onChange={() => toggleChecklistItem(task.id, chk.id)}
+                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
+                      />
+                      <span className={chk.completed ? 'line-through text-slate-400' : ''}>{chk.text}</span>
+                    </label>
+                  ))}
+                  {currentUser.role !== 'client' && (
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        const val = (subtaskInputs[task.id] || '').trim();
+                        if (!val) return;
+                        addSubtask(task.id, val);
+                        setSubtaskInputs((prev) => ({ ...prev, [task.id]: '' }));
+                      }}
+                      className="flex items-center gap-1.5 pt-1"
+                    >
+                      <input
+                        type="text"
+                        value={subtaskInputs[task.id] || ''}
+                        onChange={(e) => setSubtaskInputs((prev) => ({ ...prev, [task.id]: e.target.value }))}
+                        placeholder="+ Add subtask..."
+                        className="flex-1 text-xs px-2.5 py-1 rounded-lg border border-slate-200 bg-slate-50/70 focus:bg-white focus:outline-hidden focus:border-blue-500"
+                      />
+                      <button
+                        type="submit"
+                        disabled={!(subtaskInputs[task.id] || '').trim()}
+                        className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 disabled:opacity-40 text-white text-[11px] font-semibold transition-colors"
+                      >
+                        Add
+                      </button>
+                    </form>
                   )}
                 </div>
 

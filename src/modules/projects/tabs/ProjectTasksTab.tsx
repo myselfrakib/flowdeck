@@ -26,6 +26,7 @@ export const ProjectTasksTab: React.FC<Props> = ({ project }) => {
     tasks, 
     updateTaskStatus, 
     toggleChecklistItem, 
+    addSubtask,
     createTask, 
     createRoom,
     sendMessage,
@@ -40,6 +41,7 @@ export const ProjectTasksTab: React.FC<Props> = ({ project }) => {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [mobileLane, setMobileLane] = useState<string>('all');
   const [isNewTaskOpen, setIsNewTaskOpen] = useState(false);
+  const [subtaskInputs, setSubtaskInputs] = useState<Record<string, string>>({});
 
   // New task form state
   const [newTitle, setNewTitle] = useState('');
@@ -299,29 +301,54 @@ export const ProjectTasksTab: React.FC<Props> = ({ project }) => {
                 </div>
 
                 {/* Subtasks Checklists */}
-                {task.checklists.length > 0 && (
-                  <div className="space-y-1.5 pt-2 border-t border-slate-100">
-                    <div className="flex items-center justify-between text-[11px] font-semibold text-slate-400">
-                      <span>Subtask Verification ({completedCount}/{task.checklists.length})</span>
-                    </div>
-                    {task.checklists.map((chk) => (
-                      <label
-                        key={chk.id}
-                        className="flex items-center gap-2 text-xs text-slate-700 hover:text-slate-900 cursor-pointer"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={chk.completed}
-                          onChange={() => toggleChecklistItem(task.id, chk.id)}
-                          className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
-                        />
-                        <span className={chk.completed ? 'line-through text-slate-400' : ''}>
-                          {chk.text}
-                        </span>
-                      </label>
-                    ))}
+                <div className="space-y-1.5 pt-2 border-t border-slate-100">
+                  <div className="flex items-center justify-between text-[11px] font-semibold text-slate-400">
+                    <span>Subtask Verification ({completedCount}/{(task.checklists || []).length})</span>
                   </div>
-                )}
+                  {(task.checklists || []).map((chk) => (
+                    <label
+                      key={chk.id}
+                      className="flex items-center gap-2 text-xs text-slate-700 hover:text-slate-900 cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={chk.completed}
+                        onChange={() => toggleChecklistItem(task.id, chk.id)}
+                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
+                      />
+                      <span className={chk.completed ? 'line-through text-slate-400' : ''}>
+                        {chk.text}
+                      </span>
+                    </label>
+                  ))}
+                  {currentUser.role !== 'client' && (
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        const val = (subtaskInputs[task.id] || '').trim();
+                        if (!val) return;
+                        addSubtask(task.id, val);
+                        setSubtaskInputs((prev) => ({ ...prev, [task.id]: '' }));
+                      }}
+                      className="flex items-center gap-1.5 pt-1"
+                    >
+                      <input
+                        type="text"
+                        value={subtaskInputs[task.id] || ''}
+                        onChange={(e) => setSubtaskInputs((prev) => ({ ...prev, [task.id]: e.target.value }))}
+                        placeholder="+ Add subtask..."
+                        className="flex-1 text-xs px-2.5 py-1 rounded-lg border border-slate-200 bg-slate-50/70 focus:bg-white focus:outline-hidden focus:border-blue-500"
+                      />
+                      <button
+                        type="submit"
+                        disabled={!(subtaskInputs[task.id] || '').trim()}
+                        className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 disabled:opacity-40 text-white text-[11px] font-semibold transition-colors"
+                      >
+                        Add
+                      </button>
+                    </form>
+                  )}
+                </div>
 
                 {/* Footer Meta: Assignees & Due Date */}
                 <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs text-slate-500">

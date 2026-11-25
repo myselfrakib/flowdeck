@@ -156,6 +156,7 @@ interface AppContextType {
   createTask: (task: Omit<Task, 'id' | 'createdAt'>) => void;
   updateTaskStatus: (taskId: string, status: TaskStatus) => void;
   toggleChecklistItem: (taskId: string, itemId: string) => void;
+  addSubtask: (taskId: string, text: string) => void;
   sendMessage: (roomId: string, text: string) => void;
   convertMessageToTask: (roomId: string, messageId: string, taskTitle: string, assigneeId: string, dueAt: string) => void;
   respondToShoot: (shootId: string, status: 'accepted' | 'declined' | 'suggested_alternative', alternativeTime?: string) => void;
@@ -1162,6 +1163,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return t;
       })
     );
+  };
+
+  const addSubtask = (taskId: string, text: string) => {
+    const cleanText = text.trim();
+    if (!cleanText) return;
+    setTasks((prev) =>
+      prev.map((t) => {
+        if (t.id === taskId) {
+          const newSub = {
+            id: 'c_' + Math.random().toString(36).substr(2, 7),
+            text: cleanText,
+            completed: false
+          };
+          const updated = {
+            ...t,
+            checklists: [...(t.checklists || []), newSub]
+          };
+          saveFirestoreDoc(COLLECTIONS.TASKS, updated);
+          return updated;
+        }
+        return t;
+      })
+    );
+    addToast('Subtask Added', `"${cleanText}" added to checklist.`, 'success');
   };
 
   const sendMessage = (roomId: string, text: string) => {
@@ -2216,6 +2241,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         createTask,
         updateTaskStatus,
         toggleChecklistItem,
+        addSubtask,
         sendMessage,
         convertMessageToTask,
         respondToShoot,
