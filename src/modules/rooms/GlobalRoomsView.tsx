@@ -53,7 +53,7 @@ export const GlobalRoomsView: React.FC = () => {
     setGlobalActiveRoomId(id);
   };
   const [inputText, setInputText] = useState('');
-  const [mobileView, setMobileView] = useState<'list' | 'chat'>('list');
+  const [isFullChatOpen, setIsFullChatOpen] = useState<boolean>(!!globalActiveRoomId);
 
   // Task conversion state
   const [convertingMessage, setConvertingMessage] = useState<Message | null>(null);
@@ -110,14 +110,12 @@ export const GlobalRoomsView: React.FC = () => {
         )}
       </div>
 
-      <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden flex flex-col md:flex-row h-[620px] sm:h-[720px]">
-        {/* Left: Rooms list */}
-        <div className={`w-full md:w-80 border-r border-slate-200/80 bg-slate-50/50 flex flex-col shrink-0 ${
-          mobileView === 'chat' ? 'hidden md:flex' : 'flex'
-        }`}>
+      <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden flex flex-col min-h-[520px]">
+        {/* Rooms list */}
+        <div className="w-full bg-slate-50/50 flex flex-col flex-1">
           <div className="p-3.5 border-b border-slate-200/80 flex items-center justify-between">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-              Conversations & Inboxes
+              Conversations & Inboxes ({visibleRooms.length})
             </span>
             {!isClient && (
               <button
@@ -130,7 +128,7 @@ export const GlobalRoomsView: React.FC = () => {
             )}
           </div>
 
-          <div className="flex-1 overflow-y-auto p-2 space-y-1">
+          <div className="flex-1 overflow-y-auto p-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 content-start">
             {visibleRooms.map((r) => {
               const isSelected = r.id === currentRoom?.id;
               const project = projects.find(p => p.id === r.projectId);
@@ -141,26 +139,24 @@ export const GlobalRoomsView: React.FC = () => {
                   key={r.id}
                   onClick={() => {
                     setActiveRoomId(r.id);
-                    setMobileView('chat');
+                    setIsFullChatOpen(true);
                   }}
-                  className={`w-full p-3 rounded-2xl text-left transition-all ${
-                    isSelected ? 'bg-blue-600 text-white shadow-xs font-semibold' : 'hover:bg-slate-100 text-slate-700'
+                  className={`w-full p-3.5 rounded-2xl text-left border transition-all ${
+                    isSelected ? 'bg-blue-50/70 border-blue-300 text-slate-900 shadow-2xs' : 'bg-white border-slate-200/80 hover:border-blue-300 hover:shadow-xs text-slate-700'
                   }`}
                 >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded font-bold ${
-                      isSelected ? 'bg-blue-500 text-white' : 'bg-slate-200 text-slate-700'
-                    }`}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded font-bold bg-slate-100 text-slate-700">
                       {project?.code || 'COMM'}
                     </span>
-                    <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded ${
-                      isSelected ? 'bg-blue-500 text-white' : isClientVisible ? 'bg-emerald-50 text-emerald-800' : 'bg-slate-100 text-slate-600'
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                      isClientVisible ? 'bg-emerald-50 text-emerald-800' : 'bg-slate-100 text-slate-600'
                     }`}>
                       {isClientVisible ? 'Client' : 'Internal'}
                     </span>
                   </div>
-                  <h4 className="text-xs font-bold truncate">{r.name}</h4>
-                  <p className={`text-[11px] truncate mt-0.5 ${isSelected ? 'text-blue-100' : 'text-slate-400'}`}>
+                  <h4 className="text-xs sm:text-sm font-bold truncate">{r.name}</h4>
+                  <p className="text-[11px] truncate mt-1 text-slate-500">
                     {r.lastMessageText || r.description}
                   </p>
                 </button>
@@ -168,120 +164,124 @@ export const GlobalRoomsView: React.FC = () => {
             })}
           </div>
         </div>
-
-        {/* Right: Chat Stream */}
-        {currentRoom ? (
-          <div className={`flex-1 flex flex-col min-w-0 bg-white ${
-            mobileView === 'list' ? 'hidden md:flex' : 'flex'
-          }`}>
-            <div className="px-4 sm:px-5 py-3 border-b border-slate-200/80 flex items-center justify-between">
-              <div className="flex items-center gap-2 min-w-0">
-                <button
-                  onClick={() => setMobileView('list')}
-                  className="md:hidden p-1.5 -ml-1 rounded-xl hover:bg-slate-100 text-slate-600 shrink-0"
-                  title="Back to Room List"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                </button>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-xs sm:text-sm font-bold text-slate-900 truncate">{currentRoom.name}</h3>
-                    <span className={`text-[9px] sm:text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${
-                      currentRoom.visibility === 'client_visible' ? 'bg-emerald-50 text-emerald-800' : 'bg-slate-100 text-slate-700'
-                    }`}>
-                      {currentRoom.visibility === 'client_visible' ? 'Client' : 'Internal'}
-                    </span>
-                  </div>
-                  {currentProject && (
-                    <div className="flex items-center gap-3 mt-0.5">
-                      <button
-                        onClick={() => openProject(currentProject.id, 'overview')}
-                        className="text-[11px] font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                      >
-                        <span>{currentProject.title}</span>
-                        <ExternalLink className="w-3 h-3" />
-                      </button>
-                      <button
-                        onClick={() => openProject(currentProject.id, 'schedule')}
-                        className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-200"
-                      >
-                        <CalendarDays className="w-3 h-3" />
-                        <span>Shoot & Call Sheet →</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-slate-500">
-                <Users className="w-3.5 h-3.5 text-slate-400" />
-                <span>{(currentRoom.memberIds || []).length} members</span>
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
-              {roomMessages.map((msg) => {
-                const sender = users.find(u => u.id === msg.senderId);
-                const isCurrentUser = msg.senderId === currentUser.id;
-
-                return (
-                  <div key={msg.id} className={`flex items-start gap-3 group ${isCurrentUser ? 'flex-row-reverse' : ''}`}>
-                    <img src={sender?.avatar} alt={sender?.name} className="w-8 h-8 rounded-full object-cover shrink-0 mt-0.5" />
-                    <div className={`max-w-md space-y-1 ${isCurrentUser ? 'items-end text-right' : ''}`}>
-                      <div className="flex items-center gap-2 text-[11px] text-slate-400">
-                        <span className="font-bold text-slate-700">{sender?.name}</span>
-                        <span>•</span>
-                        <span>{msg.createdAt}</span>
-                      </div>
-                      <div className={`p-3.5 rounded-2xl text-xs sm:text-sm leading-relaxed ${
-                        isCurrentUser ? 'bg-blue-600 text-white rounded-tr-xs' : 'bg-slate-100 text-slate-800 rounded-tl-xs'
-                      }`}>
-                        {msg.text}
-                      </div>
-                      {!isClient && (
-                        <div className={`flex items-center gap-2 ${isCurrentUser ? 'justify-end' : ''}`}>
-                          <button
-                            onClick={() => {
-                              setConvertingMessage(msg);
-                              setTaskTitle(msg.text.slice(0, 50));
-                            }}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px] font-semibold text-blue-600 flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded border border-blue-200"
-                          >
-                            <CheckSquare className="w-3 h-3" />
-                            <span>Convert to Task</span>
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <form onSubmit={handleSend} className="p-3.5 border-t border-slate-200 bg-slate-50/50">
-              <div className="flex items-center gap-2 bg-white rounded-2xl border border-slate-200 px-3 py-2">
-                <input
-                  type="text"
-                  value={inputText}
-                  onChange={(e) => setInputText(e.target.value)}
-                  placeholder={`Reply in #${currentRoom.name}...`}
-                  className="flex-1 text-xs sm:text-sm bg-transparent focus:outline-hidden text-slate-800"
-                />
-                <button
-                  type="submit"
-                  disabled={!inputText.trim()}
-                  className="p-2 rounded-xl bg-blue-600 text-white disabled:opacity-40"
-                >
-                  <Send className="w-4 h-4" />
-                </button>
-              </div>
-            </form>
-          </div>
-        ) : (
-          <div className="flex-1 flex items-center justify-center p-8 text-slate-400">
-            Select a room to begin
-          </div>
-        )}
       </div>
+
+      {/* Full-Page Chat View when a chat is clicked */}
+      {isFullChatOpen && currentRoom && (
+        <div className="fixed inset-0 z-50 bg-white flex flex-col animate-in fade-in duration-150">
+          <div className="px-4 sm:px-6 py-3.5 border-b border-slate-200/80 flex items-center justify-between bg-white shrink-0">
+            <div className="flex items-center gap-3 min-w-0">
+              <button
+                onClick={() => {
+                  setIsFullChatOpen(false);
+                  setGlobalActiveRoomId(null);
+                }}
+                className="p-2 -ml-1 rounded-xl hover:bg-slate-100 text-slate-700 shrink-0 flex items-center gap-1 text-xs font-bold"
+                title="Back to Rooms"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span className="hidden sm:inline">Back</span>
+              </button>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm sm:text-base font-bold text-slate-900 truncate">{currentRoom.name}</h3>
+                  <span className={`text-[9px] sm:text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${
+                    currentRoom.visibility === 'client_visible' ? 'bg-emerald-50 text-emerald-800' : 'bg-slate-100 text-slate-700'
+                  }`}>
+                    {currentRoom.visibility === 'client_visible' ? 'Client' : 'Internal'}
+                  </span>
+                </div>
+                {currentProject && (
+                  <div className="flex items-center gap-3 mt-0.5">
+                    <button
+                      onClick={() => {
+                        setIsFullChatOpen(false);
+                        openProject(currentProject.id, 'overview');
+                      }}
+                      className="text-[11px] font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                    >
+                      <span>{currentProject.title}</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsFullChatOpen(false);
+                        openProject(currentProject.id, 'schedule');
+                      }}
+                      className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-200"
+                    >
+                      <CalendarDays className="w-3 h-3" />
+                      <span>Shoot & Call Sheet →</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 text-[11px] text-slate-500 shrink-0">
+              <Users className="w-3.5 h-3.5 text-slate-400" />
+              <span>{(currentRoom.memberIds || []).length} members</span>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-slate-50/40">
+            {roomMessages.map((msg) => {
+              const sender = users.find(u => u.id === msg.senderId);
+              const isCurrentUser = msg.senderId === currentUser.id;
+
+              return (
+                <div key={msg.id} className={`flex items-start gap-3 group ${isCurrentUser ? 'flex-row-reverse' : ''}`}>
+                  <img src={sender?.avatar} alt={sender?.name} className="w-8 h-8 rounded-full object-cover shrink-0 mt-0.5" />
+                  <div className={`max-w-lg space-y-1 ${isCurrentUser ? 'items-end text-right' : ''}`}>
+                    <div className="flex items-center gap-2 text-[11px] text-slate-400">
+                      <span className="font-bold text-slate-700">{sender?.name}</span>
+                      <span>•</span>
+                      <span>{msg.createdAt}</span>
+                    </div>
+                    <div className={`p-3.5 rounded-2xl text-xs sm:text-sm leading-relaxed ${
+                      isCurrentUser ? 'bg-blue-600 text-white rounded-tr-xs' : 'bg-white border border-slate-200 text-slate-800 rounded-tl-xs shadow-2xs'
+                    }`}>
+                      {msg.text}
+                    </div>
+                    {!isClient && (
+                      <div className={`flex items-center gap-2 ${isCurrentUser ? 'justify-end' : ''}`}>
+                        <button
+                          onClick={() => {
+                            setConvertingMessage(msg);
+                            setTaskTitle(msg.text.slice(0, 50));
+                          }}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px] font-semibold text-blue-600 flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded border border-blue-200"
+                        >
+                          <CheckSquare className="w-3 h-3" />
+                          <span>Convert to Task</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <form onSubmit={handleSend} className="p-3.5 sm:p-4 border-t border-slate-200 bg-white shrink-0 safe-bottom">
+            <div className="flex items-center gap-2 bg-slate-50 rounded-2xl border border-slate-200 px-3 py-2 max-w-5xl mx-auto">
+              <input
+                type="text"
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                placeholder={`Reply in #${currentRoom.name}...`}
+                className="flex-1 text-xs sm:text-sm bg-transparent focus:outline-hidden text-slate-800"
+              />
+              <button
+                type="submit"
+                disabled={!inputText.trim()}
+                className="p-2 rounded-xl bg-blue-600 text-white disabled:opacity-40"
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* Convert to Task Modal */}
       {convertingMessage && (
@@ -354,7 +354,7 @@ export const GlobalRoomsView: React.FC = () => {
                 });
                 sendMessage(created.id, `Room "${created.name}" created. Invited crew can now discuss and coordinate here.`);
                 setActiveRoomId(created.id);
-                setMobileView('chat');
+                setIsFullChatOpen(true);
                 setNewRoomName('');
                 setNewRoomDesc('');
                 setSelectedCrewIds([currentUser.id]);

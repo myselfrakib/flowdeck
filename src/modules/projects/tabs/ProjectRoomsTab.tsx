@@ -64,7 +64,7 @@ export const ProjectRoomsTab: React.FC<Props> = ({ project }) => {
     setGlobalActiveRoomId(id);
   };
   const [inputText, setInputText] = useState('');
-  const [mobileView, setMobileView] = useState<'list' | 'chat'>('list');
+  const [isFullChatOpen, setIsFullChatOpen] = useState<boolean>(!!globalActiveRoomId);
 
   // Convert Message to Task modal state
   const [convertingMessage, setConvertingMessage] = useState<Message | null>(null);
@@ -95,12 +95,10 @@ export const ProjectRoomsTab: React.FC<Props> = ({ project }) => {
   };
 
   return (
-    <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden flex flex-col md:flex-row h-[620px] sm:h-[700px]">
+    <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden flex flex-col min-h-[460px]">
       
-      {/* Left: Rooms Navigation List */}
-      <div className={`w-full md:w-80 border-r border-slate-200/80 flex flex-col shrink-0 bg-slate-50/50 ${
-        mobileView === 'chat' ? 'hidden md:flex' : 'flex'
-      }`}>
+      {/* Rooms Navigation List */}
+      <div className="w-full flex flex-col flex-1 bg-slate-50/50">
         
         {/* Rooms Header */}
         <div className="p-4 border-b border-slate-200/80">
@@ -131,7 +129,7 @@ export const ProjectRoomsTab: React.FC<Props> = ({ project }) => {
         </div>
 
         {/* Room Items */}
-        <div className="flex-1 overflow-y-auto p-2 space-y-1">
+        <div className="flex-1 overflow-y-auto p-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 content-start">
           {projectRooms.map((room) => {
             const isSelected = room.id === currentRoom?.id;
             const isClientVisible = room.visibility === 'client_visible';
@@ -141,12 +139,12 @@ export const ProjectRoomsTab: React.FC<Props> = ({ project }) => {
                 key={room.id}
                 onClick={() => {
                   setActiveRoomId(room.id);
-                  setMobileView('chat');
+                  setIsFullChatOpen(true);
                 }}
-                className={`w-full p-3 rounded-2xl text-left transition-all ${
+                className={`w-full p-3.5 rounded-2xl text-left border transition-all ${
                   isSelected
-                    ? 'bg-blue-600 text-white shadow-sm font-semibold'
-                    : 'hover:bg-slate-100/80 text-slate-700 font-medium'
+                    ? 'bg-blue-50/70 border-blue-300 text-slate-900 shadow-2xs font-semibold'
+                    : 'bg-white border-slate-200/80 hover:border-blue-300 hover:shadow-xs text-slate-700 font-medium'
                 }`}
               >
                 <div className="flex items-center justify-between mb-1">
@@ -190,21 +188,23 @@ export const ProjectRoomsTab: React.FC<Props> = ({ project }) => {
         </div>
       </div>
 
-      {/* Right: Active Room Chat Area */}
-      {currentRoom ? (
-        <div className={`flex-1 flex flex-col min-w-0 bg-white ${
-          mobileView === 'list' ? 'hidden md:flex' : 'flex'
-        }`}>
+      {/* Full-Page Chat View when a room is clicked */}
+      {isFullChatOpen && currentRoom && (
+        <div className="fixed inset-0 z-50 bg-white flex flex-col animate-in fade-in duration-150">
           
           {/* Active Room Top Header */}
-          <div className="px-4 sm:px-5 py-3 border-b border-slate-200/80 flex items-center justify-between bg-white">
-            <div className="flex items-center gap-2 min-w-0">
+          <div className="px-4 sm:px-6 py-3.5 border-b border-slate-200/80 flex items-center justify-between bg-white shrink-0">
+            <div className="flex items-center gap-3 min-w-0">
               <button
-                onClick={() => setMobileView('list')}
-                className="md:hidden p-1.5 -ml-1 rounded-xl hover:bg-slate-100 text-slate-600 shrink-0"
+                onClick={() => {
+                  setIsFullChatOpen(false);
+                  setGlobalActiveRoomId(null);
+                }}
+                className="p-2 -ml-1 rounded-xl hover:bg-slate-100 text-slate-700 shrink-0 flex items-center gap-1 text-xs font-bold"
                 title="Back to Room List"
               >
                 <ArrowLeft className="w-4 h-4" />
+                <span className="hidden sm:inline">Back</span>
               </button>
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
@@ -231,7 +231,10 @@ export const ProjectRoomsTab: React.FC<Props> = ({ project }) => {
               </span>
               {!isClient && (
                 <button
-                  onClick={() => setActiveProjectTab('schedule')}
+                  onClick={() => {
+                    setIsFullChatOpen(false);
+                    setActiveProjectTab('schedule');
+                  }}
                   className="px-2.5 py-1 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-[11px] font-bold flex items-center gap-1 transition-colors"
                 >
                   <CalendarDays className="w-3.5 h-3.5" />
@@ -328,11 +331,6 @@ export const ProjectRoomsTab: React.FC<Props> = ({ project }) => {
             </div>
           </form>
 
-        </div>
-      ) : (
-        <div className="flex-1 flex items-center justify-center p-8 text-center text-slate-400">
-          <MessageSquare className="w-12 h-12 mx-auto mb-2 opacity-40" />
-          <p className="text-sm font-semibold">No room selected</p>
         </div>
       )}
 
@@ -449,7 +447,7 @@ export const ProjectRoomsTab: React.FC<Props> = ({ project }) => {
                 });
                 sendMessage(created.id, `Room "${created.name}" created. Added crew can now collaborate here.`);
                 setActiveRoomId(created.id);
-                setMobileView('chat');
+                setIsFullChatOpen(true);
                 setNewRoomName('');
                 setNewRoomDesc('');
                 setSelectedCrewIds([currentUser.id]);
