@@ -32,13 +32,15 @@ export const ProjectDetailView: React.FC = () => {
   const { 
     selectedProjectId, 
     projects, 
+    tasks,
     setCurrentView, 
     activeProjectTab, 
     setActiveProjectTab, 
     users,
     currentUser,
     updateProject,
-    deleteProject
+    deleteProject,
+    unreadTaskIds
   } = useApp();
 
   const [isMobileDetailsOpen, setIsMobileDetailsOpen] = useState(false);
@@ -176,12 +178,13 @@ export const ProjectDetailView: React.FC = () => {
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeProjectTab === tab.id;
+            const hasTaskDot = tab.id === 'tasks' && tasks.some((t) => t.projectId === project.id && unreadTaskIds.includes(t.id));
 
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveProjectTab(tab.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors shrink-0 ${
+                className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors shrink-0 ${
                   isActive
                     ? 'bg-slate-900 text-white shadow-2xs font-semibold'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -189,6 +192,9 @@ export const ProjectDetailView: React.FC = () => {
               >
                 <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-slate-400'}`} />
                 <span>{tab.label}</span>
+                {hasTaskDot && (
+                  <span className="w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white shrink-0" />
+                )}
               </button>
             );
           })}

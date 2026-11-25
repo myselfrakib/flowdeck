@@ -22,7 +22,9 @@ export const ProjectListView: React.FC = () => {
     openProject, 
     setIsCreateProjectOpen, 
     currentUser, 
-    users 
+    users,
+    unreadProjectIds,
+    markProjectSeen
   } = useApp();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -136,19 +138,34 @@ export const ProjectListView: React.FC = () => {
       {/* Grid Display */}
       {viewMode === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredProjects.map((project) => {
+          {filteredProjects.map((project, index) => {
             const leadUser = users.find(u => u.id === project.leadId);
+            const hasUnread = unreadProjectIds.includes(project.id);
             return (
               <div
                 key={project.id}
-                onClick={() => openProject(project.id, 'overview')}
-                className="bg-white rounded-2xl border border-slate-200/80 p-5 hover:border-blue-400 hover:shadow-md transition-all duration-200 cursor-pointer flex flex-col justify-between group"
+                onClick={() => {
+                  markProjectSeen(project.id);
+                  openProject(project.id, 'overview');
+                }}
+                className="bg-white rounded-2xl border border-slate-200/80 p-5 hover:border-blue-400 hover:shadow-md transition-all duration-200 cursor-pointer flex flex-col justify-between group relative"
               >
                 <div>
                   <div className="flex items-center justify-between gap-2 mb-3">
-                    <span className="text-xs font-mono font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
-                      {project.code}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[11px] font-extrabold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                        #{index + 1}
+                      </span>
+                      <span className="text-xs font-mono font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
+                        {project.code}
+                      </span>
+                      {hasUnread && (
+                        <span
+                          title="New task or update added"
+                          className="w-2.5 h-2.5 rounded-full bg-rose-500 ring-2 ring-rose-100 shrink-0"
+                        />
+                      )}
+                    </div>
                     <div className="flex items-center gap-1.5">
                       <PriorityBadge priority={project.priority} />
                       <StatusBadge status={project.status} size="sm" />
@@ -222,6 +239,7 @@ export const ProjectListView: React.FC = () => {
             <table className="w-full text-left border-collapse text-xs sm:text-sm">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold uppercase tracking-wider text-[11px]">
+                  <th className="py-3 px-4">#</th>
                   <th className="py-3 px-4">Code</th>
                   <th className="py-3 px-4">Project Title</th>
                   <th className="py-3 px-4">Client</th>
@@ -233,15 +251,25 @@ export const ProjectListView: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredProjects.map((p) => {
+                {filteredProjects.map((p, idx) => {
                   const lead = users.find(u => u.id === p.leadId);
+                  const hasUnread = unreadProjectIds.includes(p.id);
                   return (
                     <tr
                       key={p.id}
-                      onClick={() => openProject(p.id, 'overview')}
+                      onClick={() => {
+                        markProjectSeen(p.id);
+                        openProject(p.id, 'overview');
+                      }}
                       className="hover:bg-blue-50/40 cursor-pointer transition-colors"
                     >
-                      <td className="py-3 px-4 font-mono font-bold text-blue-600">{p.code}</td>
+                      <td className="py-3 px-4 font-bold text-slate-500">#{idx + 1}</td>
+                      <td className="py-3 px-4 font-mono font-bold text-blue-600">
+                        <span className="inline-flex items-center gap-1.5">
+                          {hasUnread && <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />}
+                          {p.code}
+                        </span>
+                      </td>
                       <td className="py-3 px-4 font-bold text-slate-800">{p.title}</td>
                       <td className="py-3 px-4 text-slate-600">{p.clientName}</td>
                       <td className="py-3 px-4"><StatusBadge status={p.status} size="sm" /></td>

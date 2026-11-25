@@ -26,6 +26,7 @@ export const MobileBottomNav: React.FC = () => {
     setCurrentView, 
     currentUser, 
     rooms, 
+    unreadProjectIds,
     logout
   } = useApp();
 
@@ -165,8 +166,11 @@ export const MobileBottomNav: React.FC = () => {
                   isActive ? 'text-blue-600 font-extrabold' : 'text-slate-500 hover:text-slate-800 font-medium'
                 }`}
               >
-                <div className={`p-1 rounded-xl transition-all ${isActive ? 'bg-blue-50 text-blue-600' : ''}`}>
+                <div className={`relative p-1 rounded-xl transition-all ${isActive ? 'bg-blue-50 text-blue-600' : ''}`}>
                   <Icon className={`w-5 h-5 transition-transform ${isActive ? 'scale-110' : ''}`} />
+                  {item.id === 'projects' && unreadProjectIds.length > 0 && (
+                    <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white" />
+                  )}
                 </div>
                 <span className="text-[10px] mt-0.5 leading-tight tracking-tight">{item.label}</span>
                 {item.badge !== undefined && (

@@ -96,6 +96,8 @@ export interface ChecklistItem {
   id: string;
   text: string;
   completed: boolean;
+  createdBy?: string;
+  createdByName?: string;
 }
 
 export interface Task {
@@ -111,6 +113,9 @@ export interface Task {
   sourceMessageId?: string;
   blockerReason?: string;
   blockerOwnerId?: string;
+  createdBy?: string;
+  createdByName?: string;
+  updatedByName?: string;
   createdAt: string;
 }
 

@@ -19,7 +19,7 @@ import {
 import { RoleBadge } from '../shared/RoleBadge';
 
 export const DesktopSidebar: React.FC = () => {
-  const { currentView, setCurrentView, currentUser, tasks, rooms, logout } = useApp();
+  const { currentView, setCurrentView, currentUser, tasks, rooms, unreadProjectIds, unreadTaskIds, logout } = useApp();
 
   const isClient = currentUser.role === 'client';
   const isHRAuthorized = currentUser.role === 'owner' || currentUser.role === 'hr_manager';
@@ -91,11 +91,19 @@ export const DesktopSidebar: React.FC = () => {
               }`}
             >
               <div className="flex items-center gap-2.5">
-                <Icon
-                  className={`w-4 h-4 ${
-                    isActive ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600'
-                  }`}
-                />
+                <div className="relative">
+                  <Icon
+                    className={`w-4 h-4 ${
+                      isActive ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600'
+                    }`}
+                  />
+                  {item.id === 'projects' && unreadProjectIds.length > 0 && (
+                    <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white" />
+                  )}
+                  {item.id === 'tasks' && unreadTaskIds.length > 0 && (
+                    <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white" />
+                  )}
+                </div>
                 <span>{item.label}</span>
               </div>
               {item.badge !== undefined && (

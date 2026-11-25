@@ -33,6 +33,8 @@ export const ProjectTasksTab: React.FC<Props> = ({ project }) => {
     activeBusiness,
     setActiveProjectTab,
     setActiveRoomId,
+    unreadTaskIds,
+    markTaskSeen,
     users, 
     currentUser 
   } = useApp();
@@ -248,15 +250,26 @@ export const ProjectTasksTab: React.FC<Props> = ({ project }) => {
         <div className="space-y-3">
           {filteredTasks.map((task) => {
             const assignees = users.filter(u => (task.assigneeIds || []).includes(u.id));
-            const completedCount = task.checklists.filter(c => c.completed).length;
+            const completedCount = (task.checklists || []).filter(c => c.completed).length;
+            const isUnread = unreadTaskIds.includes(task.id);
+            const creatorName = task.createdByName || users.find(u => u.id === task.createdBy)?.name || assignees[0]?.name || 'Team Member';
 
             return (
               <div
                 key={task.id}
-                className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-xs hover:border-slate-300 transition-all space-y-3"
+                onClick={() => isUnread && markTaskSeen(task.id)}
+                className={`bg-white rounded-2xl border p-4 sm:p-5 shadow-xs hover:border-slate-300 transition-all space-y-3 ${
+                  isUnread ? 'border-rose-300 ring-1 ring-rose-100' : 'border-slate-200/80'
+                }`}
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
+                    {isUnread && (
+                      <span
+                        title="New or updated task"
+                        className="w-2.5 h-2.5 rounded-full bg-rose-500 ring-2 ring-rose-100 shrink-0"
+                      />
+                    )}
                     <PriorityBadge priority={task.priority} />
                     <StatusBadge status={task.status} size="sm" />
                     {task.sourceMessageId && (
@@ -284,9 +297,14 @@ export const ProjectTasksTab: React.FC<Props> = ({ project }) => {
                 </div>
 
                 <div>
-                  <h4 className="text-sm sm:text-base font-bold text-slate-900">
-                    {task.title}
-                  </h4>
+                  <div className="flex flex-wrap items-baseline gap-2">
+                    <h4 className="text-sm sm:text-base font-bold text-slate-900">
+                      {task.title}
+                    </h4>
+                    <span className="text-[11px] font-medium text-slate-400">
+                      (By {creatorName})
+                    </span>
+                  </div>
                   {task.description && (
                     <p className="text-xs text-slate-600 mt-1 leading-relaxed">
                       {task.description}
@@ -318,6 +336,9 @@ export const ProjectTasksTab: React.FC<Props> = ({ project }) => {
                       />
                       <span className={chk.completed ? 'line-through text-slate-400' : ''}>
                         {chk.text}
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-medium">
+                        (By {chk.createdByName || creatorName})
                       </span>
                     </label>
                   ))}

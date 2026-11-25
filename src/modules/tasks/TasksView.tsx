@@ -18,7 +18,7 @@ import {
 import { TaskStatus, ProjectPriority } from '../../types';
 
 export const TasksView: React.FC = () => {
-  const { tasks, projects, users, updateTaskStatus, toggleChecklistItem, addSubtask, deleteTask, openProject, createTask, createRoom, sendMessage, activeBusiness, setActiveRoomId, currentUser } = useApp();
+  const { tasks, projects, users, updateTaskStatus, toggleChecklistItem, addSubtask, deleteTask, openProject, createTask, createRoom, sendMessage, activeBusiness, setActiveRoomId, unreadTaskIds, markTaskSeen, currentUser } = useApp();
   const [viewMode, setViewMode] = useState<'list' | 'board'>('list');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [projectFilter, setProjectFilter] = useState<string>('all');
@@ -212,14 +212,25 @@ export const TasksView: React.FC = () => {
           {filteredTasks.map((task) => {
             const project = projects.find(p => p.id === task.projectId);
             const assignees = users.filter(u => (task.assigneeIds || []).includes(u.id));
+            const isUnread = unreadTaskIds.includes(task.id);
+            const creatorName = task.createdByName || users.find(u => u.id === task.createdBy)?.name || assignees[0]?.name || 'Team Member';
 
             return (
               <div
                 key={task.id}
-                className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-xs hover:border-blue-300 transition-all space-y-2.5"
+                onClick={() => isUnread && markTaskSeen(task.id)}
+                className={`bg-white rounded-2xl border p-4 sm:p-5 shadow-xs hover:border-blue-300 transition-all space-y-2.5 ${
+                  isUnread ? 'border-rose-300 ring-1 ring-rose-100' : 'border-slate-200/80'
+                }`}
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div className="flex items-center gap-2 flex-wrap">
+                    {isUnread && (
+                      <span
+                        title="New or updated task"
+                        className="w-2.5 h-2.5 rounded-full bg-rose-500 ring-2 ring-rose-100 shrink-0"
+                      />
+                    )}
                     {project ? (
                       <button
                         onClick={() => openProject(task.projectId, 'tasks')}
@@ -264,7 +275,12 @@ export const TasksView: React.FC = () => {
                 </div>
 
                 <div>
-                  <h4 className="text-sm font-bold text-slate-900">{task.title}</h4>
+                  <div className="flex flex-wrap items-baseline gap-2">
+                    <h4 className="text-sm font-bold text-slate-900">{task.title}</h4>
+                    <span className="text-[11px] font-medium text-slate-400">
+                      (By {creatorName})
+                    </span>
+                  </div>
                   {task.description && (
                     <p className="text-xs text-slate-600 mt-0.5">{task.description}</p>
                   )}
@@ -290,6 +306,9 @@ export const TasksView: React.FC = () => {
                         className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
                       />
                       <span className={chk.completed ? 'line-through text-slate-400' : ''}>{chk.text}</span>
+                      <span className="text-[10px] text-slate-400 font-medium">
+                        (By {chk.createdByName || creatorName})
+                      </span>
                     </label>
                   ))}
                   {currentUser.role !== 'client' && (

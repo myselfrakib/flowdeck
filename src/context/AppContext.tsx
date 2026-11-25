@@ -194,6 +194,10 @@ interface AppContextType {
   createRoom: (room: Omit<Room, 'id' | 'unreadCount'>) => Room;
   activeRoomId: string | null;
   setActiveRoomId: (id: string | null) => void;
+  unreadProjectIds: string[];
+  unreadTaskIds: string[];
+  markProjectSeen: (projectId: string) => void;
+  markTaskSeen: (taskId: string) => void;
 }
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -292,6 +296,71 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [activeProjectTab, setActiveProjectTab] = useState<ProjectTabType>('overview');
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
+
+  const [unreadProjectIds, setUnreadProjectIds] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('flowdeck_unread_projects');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [unreadTaskIds, setUnreadTaskIds] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('flowdeck_unread_tasks');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('flowdeck_unread_projects', JSON.stringify(unreadProjectIds));
+    } catch {}
+  }, [unreadProjectIds]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('flowdeck_unread_tasks', JSON.stringify(unreadTaskIds));
+    } catch {}
+  }, [unreadTaskIds]);
+
+  const markProjectSeen = (projectId: string) => {
+    setUnreadProjectIds((prev) => prev.filter((id) => id !== projectId));
+  };
+
+  const markTaskSeen = (taskId: string) => {
+    setUnreadTaskIds((prev) => prev.filter((id) => id !== taskId));
+  };
+
+  const markChangeUnread = (projectId?: string, taskId?: string) => {
+    if (projectId) {
+      setUnreadProjectIds((prev) => (prev.includes(projectId) ? prev : [...prev, projectId]));
+    }
+    if (taskId) {
+      setUnreadTaskIds((prev) => (prev.includes(taskId) ? prev : [...prev, taskId]));
+    }
+  };
+
+  const pushChangeNotification = (
+    title: string,
+    message: string,
+    type: NotificationItem['type'] = 'mention'
+  ) => {
+    const newNotif: NotificationItem = {
+      id: 'notif_chg_' + Math.random().toString(36).substr(2, 9),
+      recipientId: 'all',
+      title,
+      message,
+      type,
+      createdAt: new Date().toISOString(),
+      read: false
+    };
+    setNotifications((prev) => [newNotif, ...prev]);
+    saveFirestoreDoc(COLLECTIONS.NOTIFICATIONS, newNotif);
+  };
 
   // Domain states with localStorage persistence fallback
   const [projects, setProjects] = useState<Project[]>(() => {
@@ -1029,14 +1098,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id: 'task_' + Math.random().toString(36).substr(2, 9),
       projectId: newId,
       title: 'Review Brief & Finalize Production Crew',
-      description: 'Review client requirements, verify deliverables, and coordinate assigned team members: ' + (projectItem.teamIds.map(id => users.find(u => u.id === id)?.name).filter(Boolean).join(', ') || 'Lead Assignee'),
-      assigneeIds: Array.from(new Set([projectItem.leadId, ...projectItem.teamIds])),
+      description: 'Review client requirements, verify deliverables, and coordinate assigned team members: ' + ((projectItem.teamIds || []).map(id => users.find(u => u.id === id)?.name).filter(Boolean).join(', ') || 'Lead Assignee'),
+      assigneeIds: Array.from(new Set([projectItem.leadId, ...(projectItem.teamIds || [])])),
       status: 'in_progress',
       priority: 'high',
       dueAt: new Date(Date.now() + 2 * 24 * 3600 * 1000).toISOString(),
+      createdBy: currentUser.id,
+      createdByName: currentUser.name,
       checklists: [
-        { id: 'c1', text: 'Validate aspect ratios and deliverable formats', completed: true },
-        { id: 'c2', text: 'Coordinate with assigned crew to begin production execution', completed: false }
+        { id: 'c1', text: 'Validate aspect ratios and deliverable formats', completed: true, createdBy: currentUser.id, createdByName: currentUser.name },
+        { id: 'c2', text: 'Coordinate with assigned crew to begin production execution', completed: false, createdBy: currentUser.id, createdByName: currentUser.name }
       ],
       createdAt: new Date().toISOString()
     };
@@ -1044,18 +1115,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     saveFirestoreDoc(COLLECTIONS.TASKS, initialTask);
 
     // Activity Log
-    setActivityLogs((prev) => [
-      {
-        id: 'act_' + Math.random().toString(36).substr(2, 9),
-        projectId: newId,
-        actorId: currentUser.id,
-        action: 'created new project workspace',
-        target: projectItem.title,
-        timestamp: 'Just now',
-        category: 'project'
-      },
-      ...prev
-    ]);
+    const newProjLog: ActivityLog = {
+      id: 'act_' + Math.random().toString(36).substr(2, 9),
+      projectId: newId,
+      actorId: currentUser.id,
+      action: 'created new project workspace',
+      target: projectItem.title,
+      timestamp: 'Just now',
+      category: 'project'
+    };
+    setActivityLogs((prev) => [newProjLog, ...prev]);
+    saveFirestoreDoc(COLLECTIONS.LOGS, newProjLog);
+
+    markChangeUnread(newId, initialTask.id);
+    pushChangeNotification(
+      `New Project (By ${currentUser.name})`,
+      `${currentUser.name} created project "${projectItem.title}" for ${projectItem.clientName}.`,
+      'mention'
+    );
 
     addToast('Project Created', `"${projectItem.title}" has been set up with default rooms and workflow tasks.`, 'success');
     openProject(newId, 'overview');
@@ -1097,23 +1174,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const newTask: Task = {
       ...task,
       id: 'task_' + Math.random().toString(36).substr(2, 9),
+      createdBy: task.createdBy || currentUser.id,
+      createdByName: task.createdByName || currentUser.name,
+      checklists: (task.checklists || []).map((c) => ({
+        ...c,
+        createdBy: c.createdBy || currentUser.id,
+        createdByName: c.createdByName || currentUser.name
+      })),
       createdAt: new Date().toISOString()
     };
     setTasks((prev) => [newTask, ...prev]);
     saveFirestoreDoc(COLLECTIONS.TASKS, newTask);
-    setActivityLogs((prev) => [
-      {
-        id: 'act_' + Math.random().toString(36).substr(2, 9),
-        projectId: task.projectId,
-        actorId: currentUser.id,
-        action: 'created new task',
-        target: task.title,
-        timestamp: 'Just now',
-        category: 'task'
-      },
-      ...prev
-    ]);
-    addToast('Task Created', `Task "${task.title}" added to workload.`, 'success');
+
+    const newLog: ActivityLog = {
+      id: 'act_' + Math.random().toString(36).substr(2, 9),
+      projectId: task.projectId,
+      actorId: currentUser.id,
+      action: 'created new task',
+      target: task.title,
+      timestamp: 'Just now',
+      category: 'task'
+    };
+    setActivityLogs((prev) => [newLog, ...prev]);
+    saveFirestoreDoc(COLLECTIONS.LOGS, newLog);
+
+    markChangeUnread(task.projectId, newTask.id);
+    const proj = projects.find((p) => p.id === task.projectId);
+    pushChangeNotification(
+      `New Task (By ${currentUser.name})`,
+      `${currentUser.name} added task "${task.title}"${proj ? ` in ${proj.title}` : ''}.`,
+      'mention'
+    );
+    addToast('Task Created', `Task "${task.title}" added to workload (By ${currentUser.name}).`, 'success');
   };
 
   const updateTaskStatus = (taskId: string, status: TaskStatus) => {
@@ -1121,7 +1213,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setTasks((prev) =>
       prev.map((t) => {
         if (t.id === taskId) {
-          updatedTaskObj = { ...t, status };
+          updatedTaskObj = { ...t, status, updatedByName: currentUser.name };
           return updatedTaskObj;
         }
         return t;
@@ -1132,18 +1224,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     const task = tasks.find((t) => t.id === taskId);
     if (task) {
-      setActivityLogs((prev) => [
-        {
-          id: 'act_' + Math.random().toString(36).substr(2, 9),
-          projectId: task.projectId,
-          actorId: currentUser.id,
-          action: `marked task ${status.replace('_', ' ')}:`,
-          target: task.title,
-          timestamp: 'Just now',
-          category: 'task'
-        },
-        ...prev
-      ]);
+      const newLog: ActivityLog = {
+        id: 'act_' + Math.random().toString(36).substr(2, 9),
+        projectId: task.projectId,
+        actorId: currentUser.id,
+        action: `marked task ${status.replace('_', ' ')}:`,
+        target: task.title,
+        timestamp: 'Just now',
+        category: 'task'
+      };
+      setActivityLogs((prev) => [newLog, ...prev]);
+      saveFirestoreDoc(COLLECTIONS.LOGS, newLog);
+      markChangeUnread(task.projectId, task.id);
+      pushChangeNotification(
+        `Task Updated (By ${currentUser.name})`,
+        `${currentUser.name} moved "${task.title}" to ${status.replace('_', ' ').toUpperCase()}.`,
+        'mention'
+      );
       addToast('Task Updated', `Task moved to ${status.replace('_', ' ')}.`, 'info');
     }
   };
@@ -1154,11 +1251,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (t.id === taskId) {
           const updated = {
             ...t,
+            updatedByName: currentUser.name,
             checklists: t.checklists.map((c) =>
               c.id === itemId ? { ...c, completed: !c.completed } : c
             )
           };
           saveFirestoreDoc(COLLECTIONS.TASKS, updated);
+          markChangeUnread(t.projectId, t.id);
           return updated;
         }
         return t;
@@ -1169,25 +1268,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addSubtask = (taskId: string, text: string) => {
     const cleanText = text.trim();
     if (!cleanText) return;
+    let targetTask: Task | null = null;
     setTasks((prev) =>
       prev.map((t) => {
         if (t.id === taskId) {
           const newSub = {
             id: 'c_' + Math.random().toString(36).substr(2, 7),
             text: cleanText,
-            completed: false
+            completed: false,
+            createdBy: currentUser.id,
+            createdByName: currentUser.name
           };
           const updated = {
             ...t,
+            updatedByName: currentUser.name,
             checklists: [...(t.checklists || []), newSub]
           };
+          targetTask = updated;
           saveFirestoreDoc(COLLECTIONS.TASKS, updated);
+          markChangeUnread(t.projectId, t.id);
           return updated;
         }
         return t;
       })
     );
-    addToast('Subtask Added', `"${cleanText}" added to checklist.`, 'success');
+    if (targetTask) {
+      pushChangeNotification(
+        `Subtask Added (By ${currentUser.name})`,
+        `${currentUser.name} added subtask "${cleanText}" to "${(targetTask as Task).title}".`,
+        'mention'
+      );
+    }
+    addToast('Subtask Added', `"${cleanText}" added (By ${currentUser.name}).`, 'success');
   };
 
   const sendMessage = (roomId: string, text: string) => {
@@ -2278,7 +2390,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         markAllNotificationsAsRead,
         createRoom,
         activeRoomId,
-        setActiveRoomId
+        setActiveRoomId,
+        unreadProjectIds,
+        unreadTaskIds,
+        markProjectSeen,
+        markTaskSeen
       }}
     >
       {children}

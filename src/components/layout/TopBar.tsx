@@ -287,7 +287,9 @@ export const TopBar: React.FC = () => {
             >
               <Bell className="w-5 h-5" />
               {unreadNotifs.length > 0 && (
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-blue-600 rounded-full ring-2 ring-white" />
+                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-rose-600 text-white text-[10px] font-extrabold rounded-full ring-2 ring-white flex items-center justify-center leading-none shadow-xs">
+                  {unreadNotifs.length > 99 ? '99+' : unreadNotifs.length}
+                </span>
               )}
             </button>
 
