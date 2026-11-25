@@ -134,7 +134,7 @@ export const ProjectRoomsTab: React.FC<Props> = ({ project }) => {
 
         {/* Room Items */}
         <div className="flex-1 overflow-y-auto p-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 content-start">
-          {projectRooms.map((room) => {
+          {projectRooms.map((room, rIdx) => {
             const isSelected = room.id === currentRoom?.id;
             const isClientVisible = room.visibility === 'client_visible';
 
@@ -153,10 +153,13 @@ export const ProjectRoomsTab: React.FC<Props> = ({ project }) => {
               >
                 <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center gap-1.5 truncate">
+                    <span className="text-[10px] font-extrabold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 shrink-0">
+                      #{rIdx + 1}
+                    </span>
                     {isClientVisible ? (
-                      <Globe className={`w-3.5 h-3.5 ${isSelected ? 'text-white' : 'text-emerald-600'}`} />
+                      <Globe className={`w-3.5 h-3.5 ${isSelected ? 'text-blue-600' : 'text-emerald-600'}`} />
                     ) : (
-                      <Lock className={`w-3.5 h-3.5 ${isSelected ? 'text-white' : 'text-slate-400'}`} />
+                      <Lock className={`w-3.5 h-3.5 ${isSelected ? 'text-blue-600' : 'text-slate-400'}`} />
                     )}
                     <span className="text-xs truncate">{room.name}</span>
                   </div>
@@ -250,7 +253,7 @@ export const ProjectRoomsTab: React.FC<Props> = ({ project }) => {
 
           {/* Messages Stream */}
           <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
-            {roomMessages.map((msg) => {
+            {roomMessages.map((msg, msgIdx) => {
               const sender = users.find(u => u.id === msg.senderId);
               const isCurrentUser = msg.senderId === currentUser.id;
 
@@ -269,6 +272,7 @@ export const ProjectRoomsTab: React.FC<Props> = ({ project }) => {
 
                   <div className={`max-w-md space-y-1 ${isCurrentUser ? 'items-end text-right' : ''}`}>
                     <div className="flex items-center gap-2 text-[11px] text-slate-400">
+                      <span className="font-mono text-[10px] font-bold text-slate-500">#{msgIdx + 1}</span>
                       <span className="font-bold text-slate-700">{sender?.name}</span>
                       <span>•</span>
                       <span>{msg.createdAt}</span>

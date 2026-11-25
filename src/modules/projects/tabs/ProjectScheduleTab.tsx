@@ -114,7 +114,7 @@ export const ProjectScheduleTab: React.FC<Props> = ({ project }) => {
       </div>
       
       {/* Shoot Events List */}
-      {projectShoots.map((shoot) => {
+      {projectShoots.map((shoot, sIdx) => {
         const myParticipantRecord = shoot.participants.find(p => p.userId === currentUser.id);
 
         return (
@@ -126,6 +126,9 @@ export const ProjectScheduleTab: React.FC<Props> = ({ project }) => {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
               <div>
                 <div className="flex items-center gap-2 mb-1">
+                  <span className="text-[11px] font-extrabold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                    #{sIdx + 1}
+                  </span>
                   <span className="text-xs font-mono font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
                     Shoot Production
                   </span>

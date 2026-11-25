@@ -313,7 +313,7 @@ export const TopBar: React.FC = () => {
                       No notifications yet.
                     </div>
                   ) : (
-                  userNotifications.map((notif) => {
+                  userNotifications.map((notif, nIdx) => {
                     const isInviteNotif = (notif.title || '').toLowerCase().includes('invitation') && pendingInvite;
                     return (
                       <div
@@ -329,8 +329,11 @@ export const TopBar: React.FC = () => {
                           !notif.read ? 'bg-blue-50/40' : ''
                         }`}
                       >
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-semibold text-slate-800">{notif.title}</span>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
+                            <span className="text-[10px] font-mono font-bold text-slate-500 bg-slate-100 px-1.5 py-0.2 rounded">#{nIdx + 1}</span>
+                            <span>{notif.title}</span>
+                          </span>
                           <span className="text-[10px] text-slate-400">
                             {notif.createdAt && notif.createdAt.includes('T') ? new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : notif.createdAt || 'Just now'}
                           </span>

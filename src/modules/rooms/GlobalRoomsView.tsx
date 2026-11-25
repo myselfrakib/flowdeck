@@ -133,7 +133,7 @@ export const GlobalRoomsView: React.FC = () => {
           </div>
 
           <div className="flex-1 overflow-y-auto p-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 content-start">
-            {visibleRooms.map((r) => {
+            {visibleRooms.map((r, rIdx) => {
               const isSelected = r.id === currentRoom?.id;
               const project = projects.find(p => p.id === r.projectId);
               const isClientVisible = r.visibility === 'client_visible';
@@ -150,9 +150,14 @@ export const GlobalRoomsView: React.FC = () => {
                   }`}
                 >
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded font-bold bg-slate-100 text-slate-700">
-                      {project?.code || 'COMM'}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-extrabold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                        #{rIdx + 1}
+                      </span>
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded font-bold bg-slate-100 text-slate-700">
+                        {project?.code || 'COMM'}
+                      </span>
+                    </div>
                     <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
                       isClientVisible ? 'bg-emerald-50 text-emerald-800' : 'bg-slate-100 text-slate-600'
                     }`}>
@@ -228,7 +233,7 @@ export const GlobalRoomsView: React.FC = () => {
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-slate-50/40">
-            {roomMessages.map((msg) => {
+            {roomMessages.map((msg, msgIdx) => {
               const sender = users.find(u => u.id === msg.senderId);
               const isCurrentUser = msg.senderId === currentUser.id;
 
@@ -237,6 +242,7 @@ export const GlobalRoomsView: React.FC = () => {
                   <img src={sender?.avatar} alt={sender?.name} className="w-8 h-8 rounded-full object-cover shrink-0 mt-0.5" />
                   <div className={`max-w-lg space-y-1 ${isCurrentUser ? 'items-end text-right' : ''}`}>
                     <div className="flex items-center gap-2 text-[11px] text-slate-400">
+                      <span className="font-mono text-[10px] font-bold text-slate-500">#{msgIdx + 1}</span>
                       <span className="font-bold text-slate-700">{sender?.name}</span>
                       <span>•</span>
                       <span>{msg.createdAt}</span>

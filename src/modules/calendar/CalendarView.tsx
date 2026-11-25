@@ -583,7 +583,7 @@ export const CalendarView: React.FC = () => {
             <div className="space-y-3.5 mt-4 max-h-[500px] overflow-y-auto">
               
               {/* Shoots */}
-              {selectedDayItems.shoots.map((shoot) => {
+              {selectedDayItems.shoots.map((shoot, sIdx) => {
                 const project = projects.find(p => p.id === shoot.projectId);
 
                 return (
@@ -594,6 +594,9 @@ export const CalendarView: React.FC = () => {
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <div className="flex items-center gap-1.5 mb-1">
+                          <span className="text-[10px] font-extrabold text-slate-500 bg-white px-1.5 py-0.5 rounded border border-slate-200">
+                            #{sIdx + 1}
+                          </span>
                           <span className="text-[10px] font-mono font-bold text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded">
                             {project?.code}
                           </span>

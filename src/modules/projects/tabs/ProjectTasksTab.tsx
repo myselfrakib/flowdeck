@@ -248,7 +248,7 @@ export const ProjectTasksTab: React.FC<Props> = ({ project }) => {
         </div>
       ) : viewMode === 'list' ? (
         <div className="space-y-3">
-          {filteredTasks.map((task) => {
+          {filteredTasks.map((task, tIdx) => {
             const assignees = users.filter(u => (task.assigneeIds || []).includes(u.id));
             const completedCount = (task.checklists || []).filter(c => c.completed).length;
             const isUnread = unreadTaskIds.includes(task.id);
@@ -264,6 +264,9 @@ export const ProjectTasksTab: React.FC<Props> = ({ project }) => {
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-extrabold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                      #{tIdx + 1}
+                    </span>
                     {isUnread && (
                       <span
                         title="New or updated task"

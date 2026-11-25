@@ -209,7 +209,7 @@ export const TasksView: React.FC = () => {
       ) : viewMode === 'list' ? (
         /* List Mode */
         <div className="space-y-3">
-          {filteredTasks.map((task) => {
+          {filteredTasks.map((task, tIdx) => {
             const project = projects.find(p => p.id === task.projectId);
             const assignees = users.filter(u => (task.assigneeIds || []).includes(u.id));
             const isUnread = unreadTaskIds.includes(task.id);
@@ -225,6 +225,9 @@ export const TasksView: React.FC = () => {
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[11px] font-extrabold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                      #{tIdx + 1}
+                    </span>
                     {isUnread && (
                       <span
                         title="New or updated task"
