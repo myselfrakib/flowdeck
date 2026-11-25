@@ -208,15 +208,15 @@ const DEFAULT_BUSINESS: Business = {
 };
 
 const DEFAULT_USER: User = {
-  id: 'user_owner',
-  name: 'Agency Producer',
-  email: 'admin@flowdeck.app',
-  phone: '+91 98765 43210',
+  id: 'guest',
+  name: 'Guest User',
+  email: '',
+  phone: '',
   avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
-  bio: 'Executive Producer & Studio Operations Lead.',
+  bio: '',
   role: 'owner',
   accountType: 'business_owner',
-  designation: 'Agency Founder & Director',
+  designation: 'Agency Member',
   department: 'Executive',
   availability: 'available'
 };
@@ -225,9 +225,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [businesses, setBusinesses] = useState<Business[]>(() => {
     try {
       const saved = localStorage.getItem('flowdeck_db_businesses');
-      return saved ? JSON.parse(saved) : (mockBusinesses.length > 0 ? mockBusinesses : [DEFAULT_BUSINESS]);
+      return saved ? JSON.parse(saved) : [];
     } catch {
-      return [DEFAULT_BUSINESS];
+      return [];
     }
   });
 
@@ -243,9 +243,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [users, setUsers] = useState<User[]>(() => {
     try {
       const saved = localStorage.getItem('flowdeck_db_users');
-      return saved ? JSON.parse(saved) : (mockUsers.length > 0 ? mockUsers : [DEFAULT_USER]);
+      if (saved) {
+        const parsed = JSON.parse(saved) as User[];
+        return parsed.filter(u => u.id !== 'user_owner' && u.email !== 'admin@flowdeck.app' && u.id !== 'guest');
+      }
+      return [];
     } catch {
-      return [DEFAULT_USER];
+      return [];
     }
   });
   
@@ -488,18 +492,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     const unsubUsers = subscribeFirestoreCollection<User>(COLLECTIONS.USERS, (remoteUsers) => {
       if (remoteUsers && remoteUsers.length > 0) {
+        // Purge legacy demo crew account if it still exists in Firestore
+        const demoAccounts = remoteUsers.filter(u => u.id === 'user_owner' || u.email === 'admin@flowdeck.app');
+        demoAccounts.forEach((d) => deleteFirestoreDoc(COLLECTIONS.USERS, d.id));
+
+        const cleanRemote = remoteUsers.filter(u => u.id !== 'user_owner' && u.email !== 'admin@flowdeck.app' && u.id !== 'guest');
         setUsers((prev) => {
           const map = new Map<string, User>();
-          prev.forEach((u) => map.set(u.id, u));
-          remoteUsers.forEach((u) => map.set(u.id, u));
+          prev.filter(u => u.id !== 'user_owner' && u.email !== 'admin@flowdeck.app' && u.id !== 'guest').forEach((u) => map.set(u.id, u));
+          cleanRemote.forEach((u) => map.set(u.id, u));
           const merged = Array.from(map.values());
           try {
             localStorage.setItem('flowdeck_db_users', JSON.stringify(merged));
           } catch {}
           return merged;
         });
-      } else {
-        users.forEach((u) => saveFirestoreDoc(COLLECTIONS.USERS, u));
       }
     });
 
