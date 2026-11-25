@@ -14,6 +14,7 @@ import { ClientPortalView } from './modules/client-portal/ClientPortalView';
 import { HRView } from './modules/hr/HRView';
 import { ReportsView } from './modules/reports/ReportsView';
 import { SettingsView } from './modules/settings/SettingsView';
+import { ProfileView } from './modules/profile/ProfileView';
 
 import { CreateProjectModal } from './modules/projects/CreateProjectModal';
 import { CallSheetModal } from './modules/call-sheet/CallSheetModal';
@@ -55,6 +56,8 @@ const AppContent: React.FC = () => {
         return <ReportsView />;
       case 'settings':
         return <SettingsView />;
+      case 'profile':
+        return <ProfileView />;
       default:
         return <OverviewView />;
     }

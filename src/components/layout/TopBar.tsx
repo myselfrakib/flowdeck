@@ -150,12 +150,21 @@ export const TopBar: React.FC = () => {
         {/* Right side controls */}
         <div className="flex items-center gap-1.5 sm:gap-3">
 
-          {/* Logged-In User Profile & Account Menu */}
+          {/* Logged-In User Profile Button (Opens Profile Page) */}
           <div className="relative">
             <button
-              onClick={() => setIsPersonaMenuOpen(!isPersonaMenuOpen)}
-              className="flex items-center gap-1.5 sm:gap-2 p-1 sm:px-2.5 sm:py-1 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 transition-all active:scale-95"
-              title="Your Account & Role Profile"
+              onClick={() => {
+                setIsBizMenuOpen(false);
+                setIsNotifOpen(false);
+                setIsPersonaMenuOpen(false);
+                setCurrentView('profile');
+              }}
+              className={`flex items-center gap-1.5 sm:gap-2 p-1 sm:px-2.5 sm:py-1 rounded-xl border transition-all active:scale-95 ${
+                currentView === 'profile'
+                  ? 'bg-blue-50 border-blue-300'
+                  : 'bg-slate-50 hover:bg-slate-100 border-slate-200'
+              }`}
+              title="Open Your Profile Page"
             >
               <div className="relative">
                 <img

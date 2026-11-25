@@ -62,7 +62,8 @@ export type AppView =
   | 'client_portal' 
   | 'hr' 
   | 'reports' 
-  | 'settings';
+  | 'settings'
+  | 'profile';
 
 export type ProjectTabType = 'overview' | 'tasks' | 'rooms' | 'schedule' | 'assets' | 'approvals' | 'activity';
 
