@@ -98,6 +98,8 @@ export interface ChecklistItem {
   completed: boolean;
   createdBy?: string;
   createdByName?: string;
+  completedBy?: string;
+  completedByName?: string;
   imageUrl?: string;
 }
 

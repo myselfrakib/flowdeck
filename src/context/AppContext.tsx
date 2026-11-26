@@ -1358,9 +1358,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const updated = {
             ...t,
             updatedByName: currentUser.name,
-            checklists: t.checklists.map((c) =>
-              c.id === itemId ? { ...c, completed: !c.completed } : c
-            )
+            checklists: t.checklists.map((c) => {
+              if (c.id !== itemId) return c;
+              const nextDone = !c.completed;
+              if (nextDone) {
+                pushChangeNotification(
+                  `Subtask Done (By ${currentUser.name})`,
+                  `${currentUser.name} marked subtask "${c.text}" done in "${t.title}".`,
+                  'approved'
+                );
+              }
+              return {
+                ...c,
+                completed: nextDone,
+                completedBy: nextDone ? currentUser.id : undefined,
+                completedByName: nextDone ? currentUser.name : undefined
+              };
+            })
           };
           saveFirestoreDoc(COLLECTIONS.TASKS, updated);
           markChangeUnread(t.projectId, t.id);

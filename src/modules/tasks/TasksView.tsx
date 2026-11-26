@@ -353,6 +353,11 @@ export const TasksView: React.FC = () => {
                             <span className="text-[10px] text-slate-400 font-medium shrink-0">
                               (By {chk.createdByName || creatorName})
                             </span>
+                            {chk.completed && (
+                              <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded font-semibold shrink-0">
+                                (Marked done by {chk.completedByName || task.updatedByName || creatorName})
+                              </span>
+                            )}
                           </label>
                           {chk.imageUrl && (
                             <button
