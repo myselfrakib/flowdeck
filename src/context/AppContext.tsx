@@ -248,6 +248,7 @@ interface AppContextType {
   respondToLeave: (leaveId: string, status: 'approved' | 'rejected') => void;
   markAllNotificationsAsRead: () => void;
   createRoom: (room: Omit<Room, 'id' | 'unreadCount'>) => Room;
+  openOrCreateTaskRoom: (task: Task) => Room;
   activeRoomId: string | null;
   setActiveRoomId: (id: string | null) => void;
   unreadProjectIds: string[];
@@ -2471,6 +2472,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return newRoom;
   };
 
+  const openOrCreateTaskRoom = (task: Task): Room => {
+    const expectedName = `Task: ${task.title.slice(0, 32)}`;
+    const existingRoom = rooms.find(
+      (r) =>
+        r.taskId === task.id ||
+        (r.projectId === task.projectId && r.name.toLowerCase() === expectedName.toLowerCase())
+    );
+    if (existingRoom) {
+      setActiveRoomId(existingRoom.id);
+      return existingRoom;
+    }
+
+    const memberIds = Array.from(new Set([currentUser.id, ...(task.assigneeIds || [])]));
+    const created = createRoom({
+      businessId: activeBusiness.id,
+      projectId: task.projectId,
+      taskId: task.id,
+      name: expectedName,
+      description: task.description || `Discussion room for task "${task.title}"`,
+      roomType: 'internal_planning',
+      visibility: 'internal',
+      memberIds,
+      lastMessageText: `Task room opened for "${task.title}"`,
+      lastMessageTime: 'Just now'
+    });
+    sendMessage(created.id, `Room opened for task: "${task.title}" (Due ${new Date(task.dueAt).toLocaleDateString()}).`);
+    setActiveRoomId(created.id);
+    return created;
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -2566,6 +2597,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         respondToLeave,
         markAllNotificationsAsRead,
         createRoom,
+        openOrCreateTaskRoom,
         activeRoomId,
         setActiveRoomId,
         unreadProjectIds,

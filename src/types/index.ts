@@ -129,6 +129,7 @@ export interface Room {
   id: string;
   businessId: string;
   projectId: string;
+  taskId?: string;
   name: string;
   description: string;
   roomType: RoomType;

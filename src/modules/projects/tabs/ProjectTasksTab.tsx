@@ -34,9 +34,7 @@ export const ProjectTasksTab: React.FC<Props> = ({ project }) => {
     deleteSubtask,
     deleteTask,
     createTask, 
-    createRoom,
-    sendMessage,
-    activeBusiness,
+    openOrCreateTaskRoom,
     setActiveProjectTab,
     setActiveRoomId,
     unreadTaskIds,
@@ -52,8 +50,7 @@ export const ProjectTasksTab: React.FC<Props> = ({ project }) => {
   const [subtaskInputs, setSubtaskInputs] = useState<Record<string, string>>({});
   const [subtaskImages, setSubtaskImages] = useState<Record<string, string>>({});
   const [uploadingSubtaskTaskId, setUploadingSubtaskTaskId] = useState<string | null>(null);
-  const [expandedImageTaskId, setExpandedImageTaskId] = useState<string | null>(null);
-  const [expandedSubtaskImageId, setExpandedSubtaskImageId] = useState<string | null>(null);
+  const [fullScreenImage, setFullScreenImage] = useState<{ url: string; title: string } | null>(null);
 
   // New task form state
   const [newTitle, setNewTitle] = useState('');
@@ -384,28 +381,15 @@ export const ProjectTasksTab: React.FC<Props> = ({ project }) => {
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setExpandedImageTaskId(expandedImageTaskId === task.id ? null : task.id);
+                          setFullScreenImage({ url: task.imageUrl!, title: task.title });
                         }}
-                        title={expandedImageTaskId === task.id ? 'Hide task image' : 'View task image'}
-                        className={`p-1 rounded-lg border transition-colors inline-flex items-center gap-1 text-[10px] font-semibold ${
-                          expandedImageTaskId === task.id
-                            ? 'bg-blue-600 text-white border-blue-600'
-                            : 'bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100'
-                        }`}
+                        title="View task image"
+                        className="p-1 rounded-lg border bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100 transition-colors inline-flex items-center"
                       >
                         <ImageIcon className="w-3.5 h-3.5" />
                       </button>
                     )}
                   </div>
-                  {task.imageUrl && expandedImageTaskId === task.id && (
-                    <div className="mt-2.5 p-2 bg-slate-50 rounded-xl border border-slate-200 inline-block max-w-sm">
-                      <img
-                        src={task.imageUrl}
-                        alt={task.title}
-                        className="max-h-56 rounded-lg object-contain"
-                      />
-                    </div>
-                  )}
                   {task.description && (
                     <p className="text-xs text-slate-600 mt-1 leading-relaxed">
                       {task.description}
@@ -419,71 +403,81 @@ export const ProjectTasksTab: React.FC<Props> = ({ project }) => {
                   )}
                 </div>
 
-                {/* Subtasks Checklists */}
-                <div className="space-y-1.5 pt-2 border-t border-slate-100">
-                  <div className="flex items-center justify-between text-[11px] font-semibold text-slate-400">
-                    <span>Subtask Verification ({completedCount}/{(task.checklists || []).length})</span>
-                  </div>
+                {/* Subtasks Progress Bar & Checklists */}
+                {(() => {
+                  const totalSub = (task.checklists || []).length;
+                  const taskPct = totalSub > 0 ? Math.round((completedCount / totalSub) * 100) : (task.status === 'completed' ? 100 : 0);
+                  return (
+                    <div className="space-y-2 pt-2 border-t border-slate-100">
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between text-[11px] font-semibold text-slate-500">
+                          <span>Subtask Progress ({completedCount}/{totalSub})</span>
+                          <span className={taskPct === 100 ? 'text-emerald-600 font-bold' : 'text-blue-600 font-bold'}>
+                            {taskPct}%
+                          </span>
+                        </div>
+                        <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-300 ${
+                              taskPct === 100 ? 'bg-emerald-500' : 'bg-blue-600'
+                            }`}
+                            style={{ width: `${taskPct}%` }}
+                          />
+                        </div>
+                      </div>
                   {(task.checklists || []).map((chk) => (
-                    <div key={chk.id} className="space-y-1.5">
-                      <div className="flex items-center justify-between gap-2 group/sub">
-                        <div className="flex items-center gap-2 flex-1 min-w-0">
-                          <label className="flex items-center gap-2 text-xs text-slate-700 hover:text-slate-900 cursor-pointer min-w-0">
-                            <input
-                              type="checkbox"
-                              checked={chk.completed}
-                              onChange={() => toggleChecklistItem(task.id, chk.id)}
-                              className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5 shrink-0"
-                            />
-                            <span className={chk.completed ? 'line-through text-slate-400' : ''}>
-                              {chk.text}
-                            </span>
-                            <span className="text-[10px] text-slate-400 font-medium shrink-0">
-                              (By {chk.createdByName || creatorName})
-                            </span>
-                            {chk.completed && (
-                              <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded font-semibold shrink-0">
-                                (Marked done by {chk.completedByName || task.updatedByName || creatorName})
-                              </span>
-                            )}
-                          </label>
+                    <div key={chk.id} className="p-2 rounded-xl bg-slate-50/70 border border-slate-100 space-y-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <label className="flex items-start gap-2 text-xs text-slate-700 hover:text-slate-900 cursor-pointer flex-1 min-w-0">
+                          <input
+                            type="checkbox"
+                            checked={chk.completed}
+                            onChange={() => toggleChecklistItem(task.id, chk.id)}
+                            className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5 shrink-0 mt-0.5"
+                          />
+                          <span className={`break-words leading-snug ${chk.completed ? 'line-through text-slate-400' : 'font-medium text-slate-800'}`}>
+                            {chk.text}
+                          </span>
+                        </label>
+                        <div className="flex items-center gap-1 shrink-0">
                           {chk.imageUrl && (
                             <button
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setExpandedSubtaskImageId(expandedSubtaskImageId === chk.id ? null : chk.id);
+                                setFullScreenImage({ url: chk.imageUrl!, title: chk.text });
                               }}
-                              title={expandedSubtaskImageId === chk.id ? 'Hide subtask image' : 'View subtask image'}
-                              className={`p-1 rounded-md border transition-colors inline-flex items-center shrink-0 ${
-                                expandedSubtaskImageId === chk.id
-                                  ? 'bg-blue-600 text-white border-blue-600'
-                                  : 'bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100'
-                              }`}
+                              title="View subtask image"
+                              className="p-1 rounded-md border bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100 transition-colors inline-flex items-center"
                             >
                               <ImageIcon className="w-3 h-3" />
                             </button>
                           )}
+                          {currentUser.role === 'owner' && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteSubtask(task.id, chk.id);
+                              }}
+                              title="Delete subtask"
+                              className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          )}
                         </div>
-                        {currentUser.role === 'owner' && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteSubtask(task.id, chk.id);
-                            }}
-                            title="Delete subtask"
-                            className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors shrink-0"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
+                      </div>
+                      <div className="pl-5 flex flex-wrap items-center gap-1.5">
+                        <span className="text-[10px] text-slate-400 font-medium">
+                          (By {chk.createdByName || creatorName})
+                        </span>
+                        {chk.completed && (
+                          <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded font-semibold">
+                            (Marked done by {chk.completedByName || task.updatedByName || creatorName})
+                          </span>
                         )}
                       </div>
-                      {chk.imageUrl && expandedSubtaskImageId === chk.id && (
-                        <div className="ml-5 p-1.5 bg-slate-50 rounded-xl border border-slate-200 inline-block max-w-xs">
-                          <img src={chk.imageUrl} alt={chk.text} className="max-h-48 rounded-lg object-contain" />
-                        </div>
-                      )}
                     </div>
                   ))}
                   {currentUser.role !== 'client' && (
@@ -555,10 +549,12 @@ export const ProjectTasksTab: React.FC<Props> = ({ project }) => {
                       )}
                     </form>
                   )}
-                </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Footer Meta: Assignees & Due Date */}
-                <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs text-slate-500">
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs text-slate-500">
                   <div className="flex items-center gap-2">
                     <div className="flex -space-x-1.5">
                       {assignees.map((u) => (
@@ -579,21 +575,9 @@ export const ProjectTasksTab: React.FC<Props> = ({ project }) => {
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => {
-                        const memberIds = Array.from(new Set([currentUser.id, ...(task.assigneeIds || [])]));
-                        const created = createRoom({
-                          businessId: activeBusiness.id,
-                          projectId: project.id,
-                          name: `Task: ${task.title.slice(0, 32)}`,
-                          description: task.description || `Discussion room for task "${task.title}"`,
-                          roomType: 'internal_planning',
-                          visibility: 'internal',
-                          memberIds,
-                          lastMessageText: `Task room opened for "${task.title}"`,
-                          lastMessageTime: 'Just now'
-                        });
-                        sendMessage(created.id, `Created room for task: "${task.title}" (Due ${new Date(task.dueAt).toLocaleDateString()}).`);
-                        setActiveRoomId(created.id);
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openOrCreateTaskRoom(task);
                         setActiveProjectTab('rooms');
                       }}
                       className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 font-semibold text-[11px] transition-colors"
@@ -697,6 +681,28 @@ export const ProjectTasksTab: React.FC<Props> = ({ project }) => {
             );
           })}
           </div>
+        </div>
+      )}
+      {/* Full-Screen Image Modal with Small Cross Icon */}
+      {fullScreenImage && (
+        <div
+          onClick={() => setFullScreenImage(null)}
+          className="fixed inset-0 z-[70] bg-slate-950/95 backdrop-blur-sm flex items-center justify-center p-4"
+        >
+          <button
+            type="button"
+            onClick={() => setFullScreenImage(null)}
+            title="Close image"
+            className="fixed top-4 right-4 p-2 rounded-full bg-white/15 hover:bg-white/25 text-white transition-colors z-10"
+          >
+            <X className="w-4 h-4" />
+          </button>
+          <img
+            src={fullScreenImage.url}
+            alt={fullScreenImage.title}
+            onClick={(e) => e.stopPropagation()}
+            className="max-h-[88vh] max-w-full rounded-2xl object-contain shadow-2xl"
+          />
         </div>
       )}
     </div>

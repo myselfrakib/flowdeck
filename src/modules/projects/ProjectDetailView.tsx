@@ -132,21 +132,21 @@ export const ProjectDetailView: React.FC = () => {
         </div>
 
         {/* Project Meta Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-mono text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
-                {project.code}
-              </span>
-              <PriorityBadge priority={project.priority} />
-              <StatusBadge status={project.status} size="sm" />
-              <span className="text-xs font-semibold text-slate-500">
-                Client: <strong className="text-slate-800">{project.clientName}</strong>
-              </span>
-            </div>
-            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="space-y-1.5">
+            <h1 className="text-lg sm:text-2xl font-black text-slate-900 tracking-tight leading-snug">
               {project.title}
             </h1>
+            <div className="flex items-center gap-2 flex-wrap">
+              <StatusBadge status={project.status} size="sm" />
+              <PriorityBadge priority={project.priority} />
+              <span className="text-xs text-slate-500">
+                {project.clientName}
+              </span>
+              <span className="font-mono text-[11px] text-slate-400">
+                • {project.code}
+              </span>
+            </div>
           </div>
 
           {/* Desktop Metadata Row */}
