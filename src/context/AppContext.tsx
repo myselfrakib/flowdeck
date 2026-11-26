@@ -211,7 +211,7 @@ interface AppContextType {
   createTask: (task: Omit<Task, 'id' | 'createdAt'>) => void;
   updateTaskStatus: (taskId: string, status: TaskStatus) => void;
   toggleChecklistItem: (taskId: string, itemId: string) => void;
-  addSubtask: (taskId: string, text: string) => void;
+  addSubtask: (taskId: string, text: string, imageUrl?: string) => void;
   deleteSubtask: (taskId: string, itemId: string) => void;
   sendMessage: (roomId: string, text: string, attachments?: MessageAttachment[]) => void;
   markRoomRead: (roomId: string) => void;
@@ -1371,7 +1371,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
   };
 
-  const addSubtask = (taskId: string, text: string) => {
+  const addSubtask = (taskId: string, text: string, imageUrl?: string) => {
     const cleanText = text.trim();
     if (!cleanText) return;
     let targetTask: Task | null = null;
@@ -1383,7 +1383,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             text: cleanText,
             completed: false,
             createdBy: currentUser.id,
-            createdByName: currentUser.name
+            createdByName: currentUser.name,
+            imageUrl: imageUrl || undefined
           };
           const updated = {
             ...t,

@@ -98,6 +98,7 @@ export interface ChecklistItem {
   completed: boolean;
   createdBy?: string;
   createdByName?: string;
+  imageUrl?: string;
 }
 
 export interface Task {
