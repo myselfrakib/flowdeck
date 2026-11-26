@@ -152,6 +152,8 @@ export interface Message {
   id: string;
   roomId: string;
   senderId: string;
+  senderName?: string;
+  senderAvatar?: string;
   text: string;
   createdAt: string;
   isPinned?: boolean;

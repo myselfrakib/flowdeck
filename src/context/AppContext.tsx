@@ -17,7 +17,8 @@ import {
   ProjectStatus,
   VersionStatus,
   UserRole,
-  AgencyInvitation
+  AgencyInvitation,
+  MessageAttachment
 } from '../types';
 import { 
   mockBusinesses, 
@@ -211,7 +212,8 @@ interface AppContextType {
   updateTaskStatus: (taskId: string, status: TaskStatus) => void;
   toggleChecklistItem: (taskId: string, itemId: string) => void;
   addSubtask: (taskId: string, text: string) => void;
-  sendMessage: (roomId: string, text: string) => void;
+  sendMessage: (roomId: string, text: string, attachments?: MessageAttachment[]) => void;
+  markRoomRead: (roomId: string) => void;
   convertMessageToTask: (roomId: string, messageId: string, taskTitle: string, assigneeId: string, dueAt: string) => void;
   respondToShoot: (shootId: string, status: 'accepted' | 'declined' | 'suggested_alternative', alternativeTime?: string) => void;
   confirmShoot: (shootId: string) => void;
@@ -781,18 +783,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const unsubMessages = subscribeFirestoreCollection<Message>(COLLECTIONS.MESSAGES, (remoteMsgs) => {
       if (remoteMsgs && remoteMsgs.length > 0) {
-        const grouped: Record<string, Message[]> = {};
-        const sorted = [...remoteMsgs].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-        sorted.forEach((m) => {
-          if (!grouped[m.roomId]) grouped[m.roomId] = [];
-          grouped[m.roomId].push(m);
-        });
         setMessages((prev) => {
-          const merged = { ...prev, ...grouped };
+          const next: Record<string, Message[]> = { ...prev };
+          const remoteRoomIds = new Set(remoteMsgs.map((m) => m.roomId));
+          remoteRoomIds.forEach((rId) => {
+            const existing = prev[rId] || [];
+            const incoming = remoteMsgs.filter((m) => m.roomId === rId);
+            const map = new Map<string, Message>();
+            existing.forEach((m) => map.set(m.id, m));
+            incoming.forEach((m) => map.set(m.id, m));
+            next[rId] = Array.from(map.values()).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+          });
           try {
-            localStorage.setItem('flowdeck_db_messages', JSON.stringify(merged));
+            localStorage.setItem('flowdeck_db_messages', JSON.stringify(next));
           } catch {}
-          return merged;
+          return next;
         });
       }
     });
@@ -1402,26 +1407,45 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     addToast('Subtask Added', `"${cleanText}" added (By ${currentUser.name}).`, 'success');
   };
 
-  const sendMessage = (roomId: string, text: string) => {
-    if (!text.trim()) return;
+  const sendMessage = (roomId: string, text: string, attachments?: MessageAttachment[]) => {
+    const cleanText = text.trim();
+    const hasAttachments = !!(attachments && attachments.length > 0);
+    if (!cleanText && !hasAttachments) return;
+
     const newMsg: Message = {
       id: 'msg_' + Math.random().toString(36).substr(2, 9),
       roomId,
       senderId: currentUser.id,
-      text: text.trim(),
+      senderName: currentUser.name,
+      senderAvatar: currentUser.avatar,
+      text: cleanText,
       createdAt: new Date().toISOString(),
-      reactions: []
+      reactions: [],
+      attachments: hasAttachments ? attachments : undefined
     };
 
-    setMessages((prev) => ({
-      ...prev,
-      [roomId]: [...(prev[roomId] || []), newMsg]
-    }));
+    setMessages((prev) => {
+      const next = {
+        ...prev,
+        [roomId]: [...(prev[roomId] || []), newMsg]
+      };
+      try {
+        localStorage.setItem('flowdeck_db_messages', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+
+    const previewText = cleanText || (hasAttachments ? `📷 Sent ${attachments!.length} image(s)` : '');
+    const timeLabel = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
     setRooms((prev) =>
       prev.map((r) => {
         if (r.id === roomId) {
-          const updated = { ...r, lastMessageText: text.trim(), lastMessageTime: 'Just now' };
+          const updated = {
+            ...r,
+            lastMessageText: `${currentUser.name.split(' ')[0]}: ${previewText}`,
+            lastMessageTime: timeLabel
+          };
           saveFirestoreDoc(COLLECTIONS.ROOMS, updated);
           return updated;
         }
@@ -1430,6 +1454,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
 
     saveFirestoreDoc(COLLECTIONS.MESSAGES, newMsg);
+  };
+
+  const markRoomRead = (roomId: string) => {
+    setRooms((prev) =>
+      prev.map((r) => {
+        if (r.id === roomId && (r.unreadCount || 0) > 0) {
+          const updated = { ...r, unreadCount: 0 };
+          saveFirestoreDoc(COLLECTIONS.ROOMS, updated);
+          return updated;
+        }
+        return r;
+      })
+    );
   };
 
   const convertMessageToTask = (
@@ -2456,6 +2493,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         toggleChecklistItem,
         addSubtask,
         sendMessage,
+        markRoomRead,
         convertMessageToTask,
         respondToShoot,
         confirmShoot,
