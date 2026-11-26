@@ -21,7 +21,7 @@ import {
 import { TaskStatus, ProjectPriority } from '../../types';
 
 export const TasksView: React.FC = () => {
-  const { tasks, projects, users, updateTaskStatus, toggleChecklistItem, addSubtask, deleteTask, openProject, createTask, createRoom, sendMessage, activeBusiness, setActiveRoomId, unreadTaskIds, markTaskSeen, currentUser } = useApp();
+  const { tasks, projects, users, updateTaskStatus, toggleChecklistItem, addSubtask, deleteSubtask, deleteTask, openProject, createTask, createRoom, sendMessage, activeBusiness, setActiveRoomId, unreadTaskIds, markTaskSeen, currentUser } = useApp();
   const [viewMode, setViewMode] = useState<'list' | 'board'>('list');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [projectFilter, setProjectFilter] = useState<string>('all');
@@ -273,7 +273,7 @@ export const TasksView: React.FC = () => {
                       <option value="in_review">In Review</option>
                       <option value="completed">Completed</option>
                     </select>
-                    {currentUser.role !== 'client' && (
+                    {currentUser.role === 'owner' && (
                       <button
                         type="button"
                         onClick={() => deleteTask(task.id)}
@@ -336,18 +336,33 @@ export const TasksView: React.FC = () => {
                     <span>Subtask Verification ({(task.checklists || []).filter(c => c.completed).length}/{(task.checklists || []).length})</span>
                   </div>
                   {(task.checklists || []).map((chk) => (
-                    <label key={chk.id} className="flex items-center gap-2 text-xs text-slate-700 hover:text-slate-900 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={chk.completed}
-                        onChange={() => toggleChecklistItem(task.id, chk.id)}
-                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
-                      />
-                      <span className={chk.completed ? 'line-through text-slate-400' : ''}>{chk.text}</span>
-                      <span className="text-[10px] text-slate-400 font-medium">
-                        (By {chk.createdByName || creatorName})
-                      </span>
-                    </label>
+                    <div key={chk.id} className="flex items-center justify-between gap-2">
+                      <label className="flex items-center gap-2 text-xs text-slate-700 hover:text-slate-900 cursor-pointer flex-1 min-w-0">
+                        <input
+                          type="checkbox"
+                          checked={chk.completed}
+                          onChange={() => toggleChecklistItem(task.id, chk.id)}
+                          className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5 shrink-0"
+                        />
+                        <span className={chk.completed ? 'line-through text-slate-400' : ''}>{chk.text}</span>
+                        <span className="text-[10px] text-slate-400 font-medium shrink-0">
+                          (By {chk.createdByName || creatorName})
+                        </span>
+                      </label>
+                      {currentUser.role === 'owner' && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteSubtask(task.id, chk.id);
+                          }}
+                          title="Delete subtask"
+                          className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors shrink-0"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
                   ))}
                   {currentUser.role !== 'client' && (
                     <form

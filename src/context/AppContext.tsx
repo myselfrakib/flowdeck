@@ -212,6 +212,7 @@ interface AppContextType {
   updateTaskStatus: (taskId: string, status: TaskStatus) => void;
   toggleChecklistItem: (taskId: string, itemId: string) => void;
   addSubtask: (taskId: string, text: string) => void;
+  deleteSubtask: (taskId: string, itemId: string) => void;
   sendMessage: (roomId: string, text: string, attachments?: MessageAttachment[]) => void;
   markRoomRead: (roomId: string) => void;
   convertMessageToTask: (roomId: string, messageId: string, taskTitle: string, assigneeId: string, dueAt: string) => void;
@@ -1407,6 +1408,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     addToast('Subtask Added', `"${cleanText}" added (By ${currentUser.name}).`, 'success');
   };
 
+  const deleteSubtask = (taskId: string, itemId: string) => {
+    if (currentUser.role !== 'owner') {
+      addToast('Permission Denied', 'Only the agency owner can delete subtasks.', 'danger');
+      return;
+    }
+    setTasks((prev) =>
+      prev.map((t) => {
+        if (t.id === taskId) {
+          const updated = {
+            ...t,
+            updatedByName: currentUser.name,
+            checklists: (t.checklists || []).filter((c) => c.id !== itemId)
+          };
+          saveFirestoreDoc(COLLECTIONS.TASKS, updated);
+          return updated;
+        }
+        return t;
+      })
+    );
+    addToast('Subtask Deleted', 'Subtask removed from checklist.', 'info');
+  };
+
   const sendMessage = (roomId: string, text: string, attachments?: MessageAttachment[]) => {
     const cleanText = text.trim();
     const hasAttachments = !!(attachments && attachments.length > 0);
@@ -2492,6 +2515,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateTaskStatus,
         toggleChecklistItem,
         addSubtask,
+        deleteSubtask,
         sendMessage,
         markRoomRead,
         convertMessageToTask,

@@ -17,7 +17,8 @@ import {
   MessageSquare,
   ArrowRight,
   Image as ImageIcon,
-  Loader2
+  Loader2,
+  Trash2
 } from 'lucide-react';
 
 interface Props {
@@ -30,6 +31,8 @@ export const ProjectTasksTab: React.FC<Props> = ({ project }) => {
     updateTaskStatus, 
     toggleChecklistItem, 
     addSubtask,
+    deleteSubtask,
+    deleteTask,
     createTask, 
     createRoom,
     sendMessage,
@@ -349,6 +352,19 @@ export const ProjectTasksTab: React.FC<Props> = ({ project }) => {
                       <option value="in_review">In Review</option>
                       <option value="completed">Completed</option>
                     </select>
+                    {currentUser.role === 'owner' && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteTask(task.id);
+                        }}
+                        title="Delete task"
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -406,23 +422,38 @@ export const ProjectTasksTab: React.FC<Props> = ({ project }) => {
                     <span>Subtask Verification ({completedCount}/{(task.checklists || []).length})</span>
                   </div>
                   {(task.checklists || []).map((chk) => (
-                    <label
+                    <div
                       key={chk.id}
-                      className="flex items-center gap-2 text-xs text-slate-700 hover:text-slate-900 cursor-pointer"
+                      className="flex items-center justify-between gap-2 group/sub"
                     >
-                      <input
-                        type="checkbox"
-                        checked={chk.completed}
-                        onChange={() => toggleChecklistItem(task.id, chk.id)}
-                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
-                      />
-                      <span className={chk.completed ? 'line-through text-slate-400' : ''}>
-                        {chk.text}
-                      </span>
-                      <span className="text-[10px] text-slate-400 font-medium">
-                        (By {chk.createdByName || creatorName})
-                      </span>
-                    </label>
+                      <label className="flex items-center gap-2 text-xs text-slate-700 hover:text-slate-900 cursor-pointer flex-1 min-w-0">
+                        <input
+                          type="checkbox"
+                          checked={chk.completed}
+                          onChange={() => toggleChecklistItem(task.id, chk.id)}
+                          className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5 shrink-0"
+                        />
+                        <span className={chk.completed ? 'line-through text-slate-400' : ''}>
+                          {chk.text}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-medium shrink-0">
+                          (By {chk.createdByName || creatorName})
+                        </span>
+                      </label>
+                      {currentUser.role === 'owner' && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteSubtask(task.id, chk.id);
+                          }}
+                          title="Delete subtask"
+                          className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors shrink-0"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
                   ))}
                   {currentUser.role !== 'client' && (
                     <form
