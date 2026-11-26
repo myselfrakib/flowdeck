@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
+import { uploadChatImage } from '../../utils/uploadChatImage';
 import { PriorityBadge } from '../../components/shared/PriorityBadge';
 import { StatusBadge } from '../../components/shared/StatusBadge';
 import { 
@@ -13,7 +14,9 @@ import {
   X,
   Trash2,
   Search,
-  MessageSquare
+  MessageSquare,
+  Image as ImageIcon,
+  Loader2
 } from 'lucide-react';
 import { TaskStatus, ProjectPriority } from '../../types';
 
@@ -24,6 +27,7 @@ export const TasksView: React.FC = () => {
   const [projectFilter, setProjectFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [subtaskInputs, setSubtaskInputs] = useState<Record<string, string>>({});
+  const [expandedImageTaskId, setExpandedImageTaskId] = useState<string | null>(null);
   const [isNewTaskOpen, setIsNewTaskOpen] = useState(false);
 
   // New Task form state
@@ -34,6 +38,9 @@ export const TasksView: React.FC = () => {
   const [dueAt, setDueAt] = useState(new Date(Date.now() + 2 * 24 * 3600 * 1000).toISOString().split('T')[0]);
   const [selectedAssigneeIds, setSelectedAssigneeIds] = useState<string[]>([currentUser.id]);
   const [blockerReason, setBlockerReason] = useState('');
+  const [newImageUrl, setNewImageUrl] = useState('');
+  const [isUploadingTaskImg, setIsUploadingTaskImg] = useState(false);
+  const taskImgInputRef = useRef<HTMLInputElement>(null);
 
   const filteredTasks = tasks.filter((t) => {
     const matchStatus = statusFilter === 'all' || t.status === statusFilter;
@@ -65,6 +72,7 @@ export const TasksView: React.FC = () => {
       priority,
       dueAt: new Date(dueAt).toISOString(),
       blockerReason: blockerReason.trim() || undefined,
+      imageUrl: newImageUrl || undefined,
       checklists: [
         { id: 'c_' + Math.random().toString(36).substr(2, 6), text: 'Initial deliverable checklist', completed: false }
       ]
@@ -74,6 +82,7 @@ export const TasksView: React.FC = () => {
     setTitle('');
     setDescription('');
     setBlockerReason('');
+    setNewImageUrl('');
   };
 
   const toggleAssignee = (id: string) => {
@@ -278,12 +287,38 @@ export const TasksView: React.FC = () => {
                 </div>
 
                 <div>
-                  <div className="flex flex-wrap items-baseline gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <h4 className="text-sm font-bold text-slate-900">{task.title}</h4>
                     <span className="text-[11px] font-medium text-slate-400">
                       (By {creatorName})
                     </span>
+                    {task.imageUrl && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setExpandedImageTaskId(expandedImageTaskId === task.id ? null : task.id);
+                        }}
+                        title={expandedImageTaskId === task.id ? 'Hide task image' : 'View task image'}
+                        className={`p-1 rounded-lg border transition-colors inline-flex items-center gap-1 text-[10px] font-semibold ${
+                          expandedImageTaskId === task.id
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : 'bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100'
+                        }`}
+                      >
+                        <ImageIcon className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
+                  {task.imageUrl && expandedImageTaskId === task.id && (
+                    <div className="mt-2 p-2 bg-slate-50 rounded-xl border border-slate-200 inline-block max-w-sm">
+                      <img
+                        src={task.imageUrl}
+                        alt={task.title}
+                        className="max-h-56 rounded-lg object-contain"
+                      />
+                    </div>
+                  )}
                   {task.description && (
                     <p className="text-xs text-slate-600 mt-0.5">{task.description}</p>
                   )}
@@ -561,6 +596,53 @@ export const TasksView: React.FC = () => {
                 />
               </div>
 
+              <div>
+                <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
+                  Reference Image (Optional)
+                </label>
+                <input
+                  ref={taskImgInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    setIsUploadingTaskImg(true);
+                    try {
+                      const uploaded = await uploadChatImage(file);
+                      setNewImageUrl(uploaded.url);
+                    } catch {} finally {
+                      setIsUploadingTaskImg(false);
+                      if (taskImgInputRef.current) taskImgInputRef.current.value = '';
+                    }
+                  }}
+                  className="hidden"
+                />
+                <div className="flex items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => taskImgInputRef.current?.click()}
+                    disabled={isUploadingTaskImg}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700"
+                  >
+                    {isUploadingTaskImg ? <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-600" /> : <ImageIcon className="w-3.5 h-3.5 text-blue-600" />}
+                    <span>{newImageUrl ? 'Change Image' : 'Upload Image'}</span>
+                  </button>
+                  {newImageUrl && (
+                    <div className="relative inline-flex items-center gap-1.5 bg-slate-100 px-2 py-1 rounded-lg">
+                      <img src={newImageUrl} alt="Task preview" className="w-7 h-7 rounded object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => setNewImageUrl('')}
+                        className="text-slate-500 hover:text-rose-600"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
                 <button
                   type="button"
@@ -571,7 +653,8 @@ export const TasksView: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs"
+                  disabled={isUploadingTaskImg}
+                  className="px-4 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs disabled:opacity-50"
                 >
                   Create Task
                 </button>

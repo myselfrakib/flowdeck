@@ -116,6 +116,7 @@ export interface Task {
   createdBy?: string;
   createdByName?: string;
   updatedByName?: string;
+  imageUrl?: string;
   createdAt: string;
 }
 

@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Project, Task, TaskStatus } from '../../../types';
 import { useApp } from '../../../context/AppContext';
+import { uploadChatImage } from '../../../utils/uploadChatImage';
 import { PriorityBadge } from '../../../components/shared/PriorityBadge';
 import { StatusBadge } from '../../../components/shared/StatusBadge';
 import { 
@@ -14,7 +15,9 @@ import {
   Kanban,
   X,
   MessageSquare,
-  ArrowRight
+  ArrowRight,
+  Image as ImageIcon,
+  Loader2
 } from 'lucide-react';
 
 interface Props {
@@ -44,6 +47,7 @@ export const ProjectTasksTab: React.FC<Props> = ({ project }) => {
   const [mobileLane, setMobileLane] = useState<string>('all');
   const [isNewTaskOpen, setIsNewTaskOpen] = useState(false);
   const [subtaskInputs, setSubtaskInputs] = useState<Record<string, string>>({});
+  const [expandedImageTaskId, setExpandedImageTaskId] = useState<string | null>(null);
 
   // New task form state
   const [newTitle, setNewTitle] = useState('');
@@ -51,6 +55,9 @@ export const ProjectTasksTab: React.FC<Props> = ({ project }) => {
   const [newAssignee, setNewAssignee] = useState(users[0]?.id || '');
   const [newPriority, setNewPriority] = useState<Task['priority']>('high');
   const [newDueAt, setNewDueAt] = useState('2026-11-28');
+  const [newImageUrl, setNewImageUrl] = useState('');
+  const [isUploadingTaskImg, setIsUploadingTaskImg] = useState(false);
+  const taskImgInputRef = useRef<HTMLInputElement>(null);
 
   const projectTasks = tasks.filter((t) => t.projectId === project.id);
   const filteredTasks = projectTasks.filter(
@@ -69,6 +76,7 @@ export const ProjectTasksTab: React.FC<Props> = ({ project }) => {
       status: 'todo',
       priority: newPriority,
       dueAt: new Date(newDueAt).toISOString(),
+      imageUrl: newImageUrl || undefined,
       checklists: [
         { id: 'c1', text: 'Deliver work according to brief specifications', completed: false }
       ]
@@ -76,6 +84,7 @@ export const ProjectTasksTab: React.FC<Props> = ({ project }) => {
 
     setNewTitle('');
     setNewDesc('');
+    setNewImageUrl('');
     setIsNewTaskOpen(false);
   };
 
@@ -204,20 +213,64 @@ export const ProjectTasksTab: React.FC<Props> = ({ project }) => {
               />
             </div>
           </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={() => setIsNewTaskOpen(false)}
-              className="px-3 py-1.5 text-xs font-semibold text-slate-600 rounded-lg hover:bg-slate-100"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-1.5 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-xs"
-            >
-              Save Task
-            </button>
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
+            <div className="flex items-center gap-2">
+              <input
+                ref={taskImgInputRef}
+                type="file"
+                accept="image/*"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  setIsUploadingTaskImg(true);
+                  try {
+                    const uploaded = await uploadChatImage(file);
+                    setNewImageUrl(uploaded.url);
+                  } catch {} finally {
+                    setIsUploadingTaskImg(false);
+                    if (taskImgInputRef.current) taskImgInputRef.current.value = '';
+                  }
+                }}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => taskImgInputRef.current?.click()}
+                disabled={isUploadingTaskImg}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700"
+              >
+                {isUploadingTaskImg ? <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-600" /> : <ImageIcon className="w-3.5 h-3.5 text-blue-600" />}
+                <span>{newImageUrl ? 'Change Image' : 'Attach Image (Optional)'}</span>
+              </button>
+              {newImageUrl && (
+                <div className="relative inline-flex items-center gap-1.5 bg-slate-100 px-2 py-1 rounded-lg">
+                  <img src={newImageUrl} alt="Task preview" className="w-6 h-6 rounded object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => setNewImageUrl('')}
+                    className="text-slate-500 hover:text-rose-600"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setIsNewTaskOpen(false)}
+                className="px-3 py-1.5 text-xs font-semibold text-slate-600 rounded-lg hover:bg-slate-100"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isUploadingTaskImg}
+                className="px-4 py-1.5 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-xs disabled:opacity-50"
+              >
+                Save Task
+              </button>
+            </div>
           </div>
         </form>
       )}
@@ -300,14 +353,40 @@ export const ProjectTasksTab: React.FC<Props> = ({ project }) => {
                 </div>
 
                 <div>
-                  <div className="flex flex-wrap items-baseline gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <h4 className="text-sm sm:text-base font-bold text-slate-900">
                       {task.title}
                     </h4>
                     <span className="text-[11px] font-medium text-slate-400">
                       (By {creatorName})
                     </span>
+                    {task.imageUrl && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setExpandedImageTaskId(expandedImageTaskId === task.id ? null : task.id);
+                        }}
+                        title={expandedImageTaskId === task.id ? 'Hide task image' : 'View task image'}
+                        className={`p-1 rounded-lg border transition-colors inline-flex items-center gap-1 text-[10px] font-semibold ${
+                          expandedImageTaskId === task.id
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : 'bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100'
+                        }`}
+                      >
+                        <ImageIcon className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
+                  {task.imageUrl && expandedImageTaskId === task.id && (
+                    <div className="mt-2.5 p-2 bg-slate-50 rounded-xl border border-slate-200 inline-block max-w-sm">
+                      <img
+                        src={task.imageUrl}
+                        alt={task.title}
+                        className="max-h-56 rounded-lg object-contain"
+                      />
+                    </div>
+                  )}
                   {task.description && (
                     <p className="text-xs text-slate-600 mt-1 leading-relaxed">
                       {task.description}

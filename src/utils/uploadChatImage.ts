@@ -67,3 +67,4 @@ export const uploadChatImage = async (file: File): Promise<MessageAttachment> =>
     };
   }
 };
+

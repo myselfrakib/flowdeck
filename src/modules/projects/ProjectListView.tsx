@@ -12,14 +12,17 @@ import {
   Calendar, 
   Users, 
   ArrowRight,
-  Sparkles
+  Sparkles,
+  Trash2,
+  AlertTriangle
 } from 'lucide-react';
-import { ProjectStatus, DeliverableType } from '../../types';
+import { Project, ProjectStatus, DeliverableType } from '../../types';
 
 export const ProjectListView: React.FC = () => {
   const { 
     projects, 
     openProject, 
+    deleteProject,
     setIsCreateProjectOpen, 
     currentUser, 
     users,
@@ -31,6 +34,7 @@ export const ProjectListView: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+  const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
 
   const filteredProjects = projects.filter((p) => {
     const q = searchTerm.toLowerCase();
@@ -169,6 +173,19 @@ export const ProjectListView: React.FC = () => {
                     <div className="flex items-center gap-1.5">
                       <PriorityBadge priority={project.priority} />
                       <StatusBadge status={project.status} size="sm" />
+                      {currentUser.role === 'owner' && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setProjectToDelete(project);
+                          }}
+                          title="Delete project"
+                          className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -284,7 +301,22 @@ export const ProjectListView: React.FC = () => {
                       </td>
                       <td className="py-3 px-4 text-slate-600">{new Date(p.deadline).toLocaleDateString()}</td>
                       <td className="py-3 px-4 text-right">
-                        <ArrowRight className="w-4 h-4 text-slate-400 inline" />
+                        <div className="inline-flex items-center gap-2">
+                          {currentUser.role === 'owner' && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setProjectToDelete(p);
+                              }}
+                              title="Delete project"
+                              className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          <ArrowRight className="w-4 h-4 text-slate-400 inline" />
+                        </div>
                       </td>
                     </tr>
                   );
@@ -302,6 +334,42 @@ export const ProjectListView: React.FC = () => {
           <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
             Try adjusting your search filters or start a new production project.
           </p>
+        </div>
+      )}
+
+      {/* Owner Delete Project Confirmation Modal */}
+      {projectToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl p-6 shadow-2xl border border-slate-200 max-w-md w-full space-y-4">
+            <div className="flex items-center gap-3 text-rose-600">
+              <div className="p-2 bg-rose-50 rounded-xl">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <h4 className="text-base font-bold text-slate-900">Delete Project Workspace?</h4>
+            </div>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Are you sure you want to delete <strong>{projectToDelete.title}</strong> ({projectToDelete.code})? All tasks and rooms linked to this project will also be removed.
+            </p>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setProjectToDelete(null)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  deleteProject(projectToDelete.id);
+                  setProjectToDelete(null);
+                }}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold"
+              >
+                Delete Project
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
