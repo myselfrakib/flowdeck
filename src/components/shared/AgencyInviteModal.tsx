@@ -1,5 +1,6 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
+import { AgencyLogo } from './AgencyLogo';
 import { 
   Building2, 
   CheckCircle2, 
@@ -39,8 +40,13 @@ export const AgencyInviteModal: React.FC = () => {
 
         {/* Header with Agency Icon */}
         <div className="flex items-start gap-3.5">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center text-2xl shadow-md shrink-0">
-            {pendingInvite.agencyLogo || '🎬'}
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center text-2xl shadow-md shrink-0 overflow-hidden">
+            <AgencyLogo
+              logo={pendingInvite.agencyLogo}
+              name={pendingInvite.agencyName}
+              className="w-full h-full object-contain bg-white p-1.5"
+              emojiClassName="text-2xl leading-none"
+            />
           </div>
           <div className="min-w-0 pr-6">
             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-blue-100 text-blue-800 mb-1">

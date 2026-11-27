@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import { 
   Settings, 
@@ -16,9 +16,14 @@ import {
   ExternalLink,
   Camera,
   Phone,
-  User as UserIcon
+  User as UserIcon,
+  Upload,
+  Trash2,
+  Building2
 } from 'lucide-react';
 import { ProfilePhotoModal } from '../../components/shared/ProfilePhotoModal';
+import { AgencyLogo } from '../../components/shared/AgencyLogo';
+import { uploadFileToStorage } from '../../services/firebaseStorage';
 
 export const SettingsView: React.FC = () => {
   const { 
@@ -35,9 +40,12 @@ export const SettingsView: React.FC = () => {
 
   const [bizName, setBizName] = useState(activeBusiness.name);
   const [tagline, setTagline] = useState(activeBusiness.tagline);
+  const [logoUrl, setLogoUrl] = useState(activeBusiness.logoUrl || '');
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [timezone, setTimezone] = useState(activeBusiness.timezone);
   const [storageProvider, setStorageProvider] = useState(activeBusiness.storageProvider);
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   const [profileName, setProfileName] = useState(currentUser.name);
   const [profileDesignation, setProfileDesignation] = useState(currentUser.designation);
@@ -47,6 +55,7 @@ export const SettingsView: React.FC = () => {
   useEffect(() => {
     setBizName(activeBusiness.name);
     setTagline(activeBusiness.tagline);
+    setLogoUrl(activeBusiness.logoUrl || '');
     setTimezone(activeBusiness.timezone);
     setStorageProvider(activeBusiness.storageProvider);
   }, [activeBusiness]);
@@ -57,6 +66,86 @@ export const SettingsView: React.FC = () => {
     setProfileDepartment(currentUser.department || 'Operations');
   }, [currentUser]);
 
+  const readLogoAsDataUrl = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const rawResult = reader.result as string;
+        if (file.type === 'image/svg+xml') {
+          resolve(rawResult);
+          return;
+        }
+        const img = new Image();
+        img.onload = () => {
+          const maxDim = 512;
+          let { width, height } = img;
+          if (width > maxDim || height > maxDim) {
+            const ratio = Math.min(maxDim / width, maxDim / height);
+            width = Math.round(width * ratio);
+            height = Math.round(height * ratio);
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(rawResult);
+            return;
+          }
+          ctx.drawImage(img, 0, 0, width, height);
+          const outputMime =
+            file.type === 'image/png' || file.type === 'image/webp'
+              ? 'image/png'
+              : 'image/jpeg';
+          resolve(canvas.toDataURL(outputMime, 0.9));
+        };
+        img.onerror = () => reject(new Error('Failed to decode logo image'));
+        img.src = rawResult;
+      };
+      reader.onerror = () => reject(new Error('Failed to read logo file'));
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleAgencyLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      addToast('Invalid File', 'Please upload an image file (PNG, JPG, SVG, or WebP).', 'warning');
+      return;
+    }
+
+    setIsUploadingLogo(true);
+    try {
+      let nextLogoUrl = '';
+      try {
+        const uploaded = await Promise.race([
+          uploadFileToStorage(file, 'agency_logos'),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('Storage upload timeout')), 8000)
+          )
+        ]);
+        nextLogoUrl = uploaded.url;
+      } catch {
+        nextLogoUrl = await readLogoAsDataUrl(file);
+      }
+      setLogoUrl(nextLogoUrl);
+      updateBusiness({ logoUrl: nextLogoUrl });
+    } catch {
+      addToast('Upload Failed', 'Could not process the selected logo image.', 'warning');
+    } finally {
+      setIsUploadingLogo(false);
+      if (logoInputRef.current) {
+        logoInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleRemoveAgencyLogo = () => {
+    setLogoUrl('');
+    updateBusiness({ logoUrl: '' });
+  };
+
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     if (!bizName.trim()) {
@@ -66,6 +155,7 @@ export const SettingsView: React.FC = () => {
     updateBusiness({
       name: bizName.trim(),
       tagline: tagline.trim(),
+      logoUrl: logoUrl.trim(),
       timezone,
       storageProvider: storageProvider as any
     });
@@ -223,9 +313,72 @@ export const SettingsView: React.FC = () => {
       {/* Profile & Storage Form */}
       <div className="bg-white rounded-3xl border border-slate-200/80 p-5 sm:p-6 shadow-xs">
         <form onSubmit={handleSave} className="space-y-4">
-          <h3 className="text-sm font-bold text-slate-900 pb-2 border-b border-slate-100">
-            Workspace Identity
+          <h3 className="text-sm font-bold text-slate-900 pb-2 border-b border-slate-100 flex items-center gap-2">
+            <Building2 className="w-4 h-4 text-blue-600" />
+            <span>Workspace Identity</span>
           </h3>
+
+          {/* Agency Logo Upload & Preview */}
+          <div className="p-4 rounded-2xl border border-slate-200/80 bg-slate-50/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-4 min-w-0">
+              <div className="w-16 h-16 rounded-2xl border border-slate-200 bg-white shadow-xs flex items-center justify-center overflow-hidden shrink-0">
+                <AgencyLogo
+                  logo={activeBusiness.logo}
+                  logoUrl={logoUrl}
+                  name={bizName || activeBusiness.name}
+                  className="w-full h-full object-contain p-1.5"
+                  emojiClassName="text-3xl leading-none"
+                />
+              </div>
+              <div className="min-w-0 flex-1">
+                <label className="block text-xs font-bold uppercase text-slate-500">
+                  Agency Logo
+                </label>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Upload your studio logo (PNG, JPG, SVG, WebP) or paste an image URL.
+                </p>
+                <div className="mt-2">
+                  <input
+                    type="url"
+                    placeholder="Or paste logo image URL (https://...)"
+                    value={logoUrl}
+                    onChange={(e) => setLogoUrl(e.target.value)}
+                    className="w-full text-xs px-3 py-1.5 rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-blue-600"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <input
+                ref={logoInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleAgencyLogoUpload}
+                className="hidden"
+              />
+              <button
+                type="button"
+                disabled={isUploadingLogo}
+                onClick={() => logoInputRef.current?.click()}
+                className="px-3.5 py-2 rounded-xl border border-blue-200 bg-blue-50/70 hover:bg-blue-100/70 text-blue-700 font-bold text-xs flex items-center gap-1.5 transition-all active:scale-95 disabled:opacity-60"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <span>{isUploadingLogo ? 'Uploading...' : logoUrl ? 'Change Logo' : 'Upload Logo'}</span>
+              </button>
+              {logoUrl && (
+                <button
+                  type="button"
+                  onClick={handleRemoveAgencyLogo}
+                  className="px-3 py-2 rounded-xl border border-rose-200 bg-white hover:bg-rose-50 text-rose-600 font-bold text-xs flex items-center gap-1.5 transition-all active:scale-95"
+                  title="Remove agency logo"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Remove</span>
+                </button>
+              )}
+            </div>
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>

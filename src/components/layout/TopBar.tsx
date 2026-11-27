@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { RoleBadge } from '../shared/RoleBadge';
 import { ProfilePhotoModal } from '../shared/ProfilePhotoModal';
+import { AgencyLogo } from '../shared/AgencyLogo';
 
 export const TopBar: React.FC = () => {
   const { 
@@ -80,7 +81,13 @@ export const TopBar: React.FC = () => {
               onClick={() => setIsBizMenuOpen(!isBizMenuOpen)}
               className="flex items-center gap-1.5 sm:gap-2 px-2 py-1.5 rounded-xl hover:bg-slate-100 transition-colors border border-transparent hover:border-slate-200 text-left"
             >
-              <span className="text-xl sm:text-2xl">{activeBusiness.logo}</span>
+              <AgencyLogo
+                logo={activeBusiness.logo}
+                logoUrl={activeBusiness.logoUrl}
+                name={activeBusiness.name}
+                className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg object-contain bg-white border border-slate-100 shrink-0"
+                emojiClassName="text-xl sm:text-2xl leading-none"
+              />
               <div className="hidden sm:block">
                 <div className="flex items-center gap-1.5">
                   <span className="text-sm font-bold text-slate-900 tracking-tight leading-none">
@@ -114,7 +121,13 @@ export const TopBar: React.FC = () => {
                     }`}
                   >
                     <div className="flex items-center gap-2.5">
-                      <span className="text-xl">{biz.logo}</span>
+                      <AgencyLogo
+                        logo={biz.logo}
+                        logoUrl={biz.logoUrl}
+                        name={biz.name}
+                        className="w-7 h-7 rounded-lg object-contain bg-white border border-slate-100 shrink-0"
+                        emojiClassName="text-xl leading-none"
+                      />
                       <div>
                         <p className="text-xs font-bold text-slate-800">{biz.name}</p>
                         <p className="text-[11px] text-slate-500">{biz.tagline}</p>

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { UserRole } from '../../types';
+import { AgencyLogo } from '../../components/shared/AgencyLogo';
 import { 
   Layers, 
   Crown, 
@@ -190,8 +191,13 @@ export const AuthPage: React.FC = () => {
         {/* Pending Agency Invite Banner */}
         {pendingInvite && (
           <div className="p-3.5 bg-blue-50 border border-blue-200 rounded-2xl flex items-center gap-3 text-left animate-in fade-in">
-            <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center text-lg shrink-0 shadow-2xs">
-              {pendingInvite.agencyLogo || '🎬'}
+            <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center text-lg shrink-0 shadow-2xs overflow-hidden">
+              <AgencyLogo
+                logo={pendingInvite.agencyLogo}
+                name={pendingInvite.agencyName}
+                className="w-full h-full object-contain bg-white p-1"
+                emojiClassName="text-lg leading-none"
+              />
             </div>
             <div className="min-w-0 flex-1">
               <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 block">

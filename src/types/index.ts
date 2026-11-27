@@ -53,6 +53,7 @@ export interface Business {
   name: string;
   tagline: string;
   logo: string;
+  logoUrl?: string;
   category: string;
   ownerId: string;
   timezone: string;

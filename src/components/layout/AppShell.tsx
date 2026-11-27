@@ -5,6 +5,7 @@ import { TopBar } from './TopBar';
 import { MobileBottomNav } from './MobileBottomNav';
 import { GlobalSearchModal } from '../shared/GlobalSearchModal';
 import { ToastContainer } from '../shared/ToastContainer';
+import { AgencyLogo } from '../shared/AgencyLogo';
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -27,7 +28,12 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
         {pendingInvite && (
           <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white px-3 sm:px-6 py-2.5 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-2.5 text-xs animate-in fade-in slide-in-from-top-1">
             <div className="flex items-center gap-2.5 min-w-0">
-              <span className="text-base sm:text-lg">{pendingInvite.agencyLogo || '🎬'}</span>
+              <AgencyLogo
+                logo={pendingInvite.agencyLogo}
+                name={pendingInvite.agencyName}
+                className="w-6 h-6 rounded-md object-contain bg-white/95 p-0.5 shrink-0"
+                emojiClassName="text-base sm:text-lg leading-none"
+              />
               <p className="font-medium text-white truncate">
                 Join <strong className="font-bold underline underline-offset-2">{pendingInvite.agencyName}</strong> as <strong className="font-extrabold text-blue-100">{pendingInvite.role}</strong>?
               </p>
